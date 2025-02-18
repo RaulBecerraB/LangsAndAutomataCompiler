@@ -5,6 +5,19 @@ export default function SymbolTable() {
   const [input, setInput] = useState('')
   const [symbolTable, setSymbolTable] = useState([])
 
+  // Función auxiliar para obtener símbolos únicos
+  const getUniqueSymbols = (symbols) => {
+    const uniqueMap = new Map();
+    
+    symbols.forEach(symbol => {
+      if (!uniqueMap.has(symbol.lexema)) {
+        uniqueMap.set(symbol.lexema, symbol);
+      }
+    });
+    
+    return Array.from(uniqueMap.values());
+  }
+
   const analyzeInput = (text) => {
     // Tokenización del input
     const tokens = text.match(/(".*?"|[A-Za-z_]\w*|\d*\.?\d+|[=+\-*/;,(){}]|[^ \t\n])/g) || []
@@ -93,7 +106,7 @@ export default function SymbolTable() {
                   Tabla de símbolos
                 </h2>
                 <div className="flex flex-wrap gap-4">
-                  {chunk(symbolTable, 15).map((tableChunk, chunkIndex) => (
+                  {chunk(getUniqueSymbols(symbolTable), 15).map((tableChunk, chunkIndex) => (
                     <div key={chunkIndex} className="w-[200px]">
                       <table className="w-full border-collapse border border-[#0A2F7B] text-sm">
                         <thead>
