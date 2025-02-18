@@ -1,10 +1,27 @@
 "use client"
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export default function SymbolTable() {
-  const [input, setInput] = useState('')
-  const [symbolTable, setSymbolTable] = useState([])
+  const defaultInput = `numero A,B,C
+decimal D,E,F
+palabra W1,W2,W3
+A = "Hola"
+E = "Mundo"
+C = 123
+W1 = 22
+W2= "Hi"
+W3 = "World"
+D = 12.2
+E = 3.14
+F = 2.33
+D = E + F
+F = E / W2
+W2 = W3 * D
+C = C + W2`
 
+  const [input, setInput] = useState(defaultInput)
+  const [symbolTable, setSymbolTable] = useState([])
+  
   // Función auxiliar para obtener símbolos únicos
   const getUniqueSymbols = (symbols) => {
     const uniqueMap = new Map();
@@ -74,8 +91,13 @@ export default function SymbolTable() {
     setInput(text)
   }
 
+  // Move this useEffect after analyzeInput is defined
+  useEffect(() => {
+    analyzeInput(defaultInput)
+  }, [])
+
   return (
-    <div className="flex items-start justify-center p-6">
+    <div className="flex items-start justify-center px-6">
       <div className="w-full bg-white rounded-2xl shadow-lg overflow-hidden">
         <div className="bg-[#0A2F7B] px-6 py-5">
           <h1 className="text-white text-xl font-semibold m-0">
