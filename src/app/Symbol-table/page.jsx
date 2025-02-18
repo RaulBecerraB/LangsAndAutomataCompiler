@@ -44,6 +44,11 @@ C = C + W2`
     const errors = []
     let currentLine = 1
 
+    // Función para obtener el número de línea basado en la posición del texto
+    const getLineNumber = (text, position) => {
+      return text.substring(0, position).split('\n').length
+    }
+
     // Función auxiliar para determinar el tipo de un valor
     const getValueType = (value) => {
       if (value === '"') return ''
@@ -54,16 +59,6 @@ C = C + W2`
       if (value.includes('.')) return 'decimal'
       if (!isNaN(value)) return 'numero'
       return declaredVariables[value] || null
-    }
-
-    // Función para encontrar el número de línea de un token
-    const findLineNumber = (token) => {
-      for (let i = 0; i < lines.length; i++) {
-        if (lines[i].includes(token)) {
-          return i + 1
-        }
-      }
-      return 1
     }
 
     // Procesar primero las declaraciones de variables
@@ -81,11 +76,31 @@ C = C + W2`
     })
 
     // Procesar las operaciones y asignaciones
+    let lastIndex = 0
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i].trim()
       if (!token) continue
 
-      currentLine = findLineNumber(token)
+      // Encontrar la posición real del token en el texto
+      lastIndex = text.indexOf(token, lastIndex)
+      currentLine = getLineNumber(text, lastIndex)
+      lastIndex += token.length
+
+      // Manejar las comillas como lexemas separados
+      if (token === '"') {
+        symbolsMap.set(`"_${symbolsMap.size}`, { lexema: '"', tipo: '' })
+        continue
+      }
+
+      // Eliminar las comillas al almacenar el token en la tabla de símbolos
+      if (token.startsWith('"') && token.endsWith('"')) {
+        const cleanToken = token.slice(1, -1)
+        symbolsMap.set(`${cleanToken}_${symbolsMap.size}`, {
+          lexema: cleanToken,
+          tipo: 'palabra'
+        })
+        continue
+      }
 
       if (token === '=' && i > 0 && i < tokens.length - 1) {
         const variable = tokens[i - 1]
@@ -132,7 +147,7 @@ C = C + W2`
 
             if (!isCompatible) {
               errors.push({
-                lexema: `${variable} = ${value}`,
+                lexema: `${variable},${value}`,
                 linea: currentLine,
                 descripcion: `Tipo incompatible en asignación: se esperaba ${varType} pero se recibió ${valueType}`
               })
