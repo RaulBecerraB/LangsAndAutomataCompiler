@@ -21,43 +21,42 @@ export default function SymbolTable() {
       const token = tokens[i].trim()
       if (!token) continue
       
-      // Si el token ya existe en la tabla, lo saltamos
-      if (symbolsMap.has(token)) continue
-      
       // Verificamos si es un tipo de dato
       if (['numero', 'decimal', 'palabra'].includes(token.toLowerCase())) {
         currentType = token.toLowerCase()
-        symbolsMap.set(token, { lexema: token, tipo: '' })
+        
+        // Si es una nueva declaración (formato: "tipo identificador")
+        if (i + 1 < tokens.length && /^[A-Za-z_]\w*$/.test(tokens[i + 1])) {
+          symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: '' })
+        }
         continue
       }
       
       // Si estamos después de un tipo, los identificadores son declaraciones
       if (currentType && /^[A-Za-z_]\w*$/.test(token)) {
         declaredVariables[token] = currentType
-        symbolsMap.set(token, { lexema: token, tipo: currentType })
+        symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: currentType })
       }
       // Si es una coma, continuamos con el mismo tipo
       else if (token === ',') {
-        symbolsMap.set(token, { lexema: token, tipo: '' })
+        symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: '' })
       }
       // Si es punto y coma, terminamos la declaración
       else if (token === ';') {
         currentType = null
-        symbolsMap.set(token, { lexema: token, tipo: '' })
+        symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: '' })
       }
       // Para otros tokens
       else {
+        // Solo asignamos tipo si la variable ya fue declarada
         if (declaredVariables[token]) {
-          symbolsMap.set(token, { lexema: token, tipo: declaredVariables[token] })
-        } else if (/^\d+$/.test(token)) {
-          symbolsMap.set(token, { lexema: token, tipo: 'int' })
+          symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: declaredVariables[token] })
         } else {
-          symbolsMap.set(token, { lexema: token, tipo: '' })
+          symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: '' })
         }
       }
     }
-    
-    // Convertimos el Map a array para el estado
+
     setSymbolTable(Array.from(symbolsMap.values()))
     setInput(text)
   }
@@ -74,7 +73,7 @@ export default function SymbolTable() {
         <div className="p-6">
           <div className="flex gap-6">
             {/* Columna izquierda - Entrada */}
-            <div className="w-1/3">
+            <div className="w-1/4">
               <h2 className="text-[#0A2F7B] text-2xl font-semibold mb-3">
                 Entrada del compilador
               </h2>
@@ -83,18 +82,17 @@ export default function SymbolTable() {
                 onChange={(e) => analyzeInput(e.target.value)}
                 placeholder="Ingrese código para analizar..."
                 className="w-full px-4 py-3 rounded-lg border border-[#0A2F7B] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                rows="18"
+                rows="20"
               />
             </div>
 
-            {/* Columna derecha - Tablas */}
+            {/* Columna central - Tabla de símbolos */}
             {input && (
-              <div className="flex-1">
+              <div className="w-2/5">
                 <h2 className="text-[#0A2F7B] text-2xl font-semibold mb-3">
                   Tabla de símbolos
                 </h2>
                 <div className="flex flex-wrap gap-4">
-                  {/* Dividimos la tabla en chunks de 15 elementos */}
                   {chunk(symbolTable, 15).map((tableChunk, chunkIndex) => (
                     <div key={chunkIndex} className="w-[200px]">
                       <table className="w-full border-collapse border border-[#0A2F7B] text-sm">
