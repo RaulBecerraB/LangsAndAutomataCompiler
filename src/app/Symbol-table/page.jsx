@@ -36,14 +36,19 @@ C = C + W2`
   }
 
   const analyzeInput = (text) => {
-    const tokens = text.match(/(".*?"|[A-Za-z_]\w*|\d*\.?\d+|[=+\-*/;,(){}]|[^ \t\n])/g) || []
+    const tokens = text.match(/(".*?"|[A-Za-z_]\w*|\d*\.?\d+|[=+\-*/;,(){}]|"|[^ \t\n])/g) || []
     let declaredVariables = {}
     let currentType = null
     const symbolsMap = new Map()
 
     // Función auxiliar para determinar el tipo de un valor
     const getValueType = (value) => {
-      if (value.startsWith('"')) return 'palabra'
+      if (value === '"') return ''  // Las comillas solas no tienen tipo
+      if (value.startsWith('"') && value.endsWith('"')) {
+        // Separamos las comillas del contenido
+        symbolsMap.set(`"_${symbolsMap.size}`, { lexema: '"', tipo: '' })
+        return 'palabra'
+      }
       if (value.includes('.')) return 'decimal'
       if (!isNaN(value)) return 'numero'
       return null
@@ -72,14 +77,22 @@ C = C + W2`
         currentType = null
         symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: '' })
       }
-      else if (token === '=') {
+      else if (token === '=' || token === '"') {  // Agregamos las comillas como token
         symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: '' })
       }
       else {
         // Si es un valor después de un signo igual
         if (i > 0 && tokens[i - 1] === '=') {
           const valueType = getValueType(token)
-          symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: valueType || '' })
+          if (token.startsWith('"') && token.endsWith('"')) {
+            // Agregamos el contenido sin las comillas
+            const content = token.slice(1, -1)
+            symbolsMap.set(`${content}_${symbolsMap.size}`, { lexema: content, tipo: 'palabra' })
+            // Agregamos la comilla de cierre
+            symbolsMap.set(`"_${symbolsMap.size}`, { lexema: '"', tipo: '' })
+          } else {
+            symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: valueType || '' })
+          }
         }
         // Para variables ya declaradas u otros tokens
         else if (declaredVariables[token]) {
