@@ -51,6 +51,7 @@ C = C + W2`
 
     // Función auxiliar para determinar el tipo de un valor
     const getValueType = (value) => {
+      if (!value) return ''
       if (value === '"') return ''
       if (value.startsWith('"') && value.endsWith('"')) {
         symbolsMap.set(`"_${symbolsMap.size}`, { lexema: '"', tipo: '' })
