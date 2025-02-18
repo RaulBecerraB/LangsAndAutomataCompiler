@@ -1,0 +1,14 @@
+[
+    {
+      "name": "Inicio",
+      "href": "/"
+    },
+    {
+      "name": "Validador de regex",
+      "href": "/validator"
+    },
+    {
+      "name": "Tabla de símbolos",
+      "href": "/symbol-table"
+    }
+]
