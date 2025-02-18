@@ -21,6 +21,7 @@ C = C + W2`
 
   const [input, setInput] = useState(defaultInput)
   const [symbolTable, setSymbolTable] = useState([])
+  const [semanticErrors, setSemanticErrors] = useState([])
 
   // Función auxiliar para obtener símbolos únicos
   const getUniqueSymbols = (symbols) => {
@@ -36,74 +37,120 @@ C = C + W2`
   }
 
   const analyzeInput = (text) => {
+    const lines = text.split('\n')
     const tokens = text.match(/(".*?"|[A-Za-z_]\w*|\d*\.?\d+|[=+\-*/;,(){}]|"|[^ \t\n])/g) || []
     let declaredVariables = {}
-    let currentType = null
     const symbolsMap = new Map()
+    const errors = []
+    let currentLine = 1
 
     // Función auxiliar para determinar el tipo de un valor
     const getValueType = (value) => {
-      if (value === '"') return ''  // Las comillas solas no tienen tipo
+      if (value === '"') return ''
       if (value.startsWith('"') && value.endsWith('"')) {
-        // Separamos las comillas del contenido
         symbolsMap.set(`"_${symbolsMap.size}`, { lexema: '"', tipo: '' })
         return 'palabra'
       }
       if (value.includes('.')) return 'decimal'
       if (!isNaN(value)) return 'numero'
-      return null
+      return declaredVariables[value] || null
     }
 
+    // Función para encontrar el número de línea de un token
+    const findLineNumber = (token) => {
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].includes(token)) {
+          return i + 1
+        }
+      }
+      return 1
+    }
+
+    // Procesar primero las declaraciones de variables
+    lines.forEach((line, index) => {
+      const lineTokens = line.trim().split(/[\s,]+/)
+      if (['numero', 'decimal', 'palabra'].includes(lineTokens[0].toLowerCase())) {
+        const type = lineTokens[0].toLowerCase()
+        lineTokens.slice(1).forEach(variable => {
+          if (/^[A-Za-z_]\w*$/.test(variable)) {
+            declaredVariables[variable] = type
+            symbolsMap.set(`${variable}_${symbolsMap.size}`, { lexema: variable, tipo: type })
+          }
+        })
+      }
+    })
+
+    // Procesar las operaciones y asignaciones
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i].trim()
       if (!token) continue
 
-      if (['numero', 'decimal', 'palabra'].includes(token.toLowerCase())) {
-        currentType = token.toLowerCase()
-        if (i + 1 < tokens.length && /^[A-Za-z_]\w*$/.test(tokens[i + 1])) {
-          symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: '' })
-        }
-        continue
-      }
+      currentLine = findLineNumber(token)
 
-      if (currentType && /^[A-Za-z_]\w*$/.test(token)) {
-        declaredVariables[token] = currentType
-        symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: currentType })
-      }
-      else if (token === ',') {
-        symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: '' })
-      }
-      else if (token === ';') {
-        currentType = null
-        symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: '' })
-      }
-      else if (token === '=' || token === '"') {  // Agregamos las comillas como token
-        symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: '' })
-      }
-      else {
-        // Si es un valor después de un signo igual
-        if (i > 0 && tokens[i - 1] === '=') {
-          const valueType = getValueType(token)
-          if (token.startsWith('"') && token.endsWith('"')) {
-            // Agregamos el contenido sin las comillas
-            const content = token.slice(1, -1)
-            symbolsMap.set(`${content}_${symbolsMap.size}`, { lexema: content, tipo: 'palabra' })
-            // Agregamos la comilla de cierre
-            symbolsMap.set(`"_${symbolsMap.size}`, { lexema: '"', tipo: '' })
-          } else {
-            symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: valueType || '' })
+      if (token === '=' && i > 0 && i < tokens.length - 1) {
+        const variable = tokens[i - 1]
+        let value = tokens[i + 1]
+        const varType = declaredVariables[variable]
+
+        // Si hay una operación después del valor
+        if (i + 2 < tokens.length && ['+', '-', '*', '/'].includes(tokens[i + 2])) {
+          const operator = tokens[i + 2]
+          const secondOperand = tokens[i + 3]
+
+          const firstOperandType = getValueType(value)
+          const secondOperandType = getValueType(secondOperand)
+
+          // Validar tipos en operaciones
+          if (firstOperandType === 'palabra' || secondOperandType === 'palabra') {
+            errors.push({
+              lexema: `${value} ${operator} ${secondOperand}`,
+              linea: currentLine,
+              descripcion: 'No se pueden realizar operaciones con tipos palabra'
+            })
+            continue
+          }
+
+          // Validar resultado de la operación con el tipo de la variable
+          const resultType = firstOperandType === 'decimal' || secondOperandType === 'decimal' ? 'decimal' : 'numero'
+
+          if (varType !== resultType && !(varType === 'decimal' && resultType === 'numero')) {
+            errors.push({
+              lexema: `${variable} = ${value} ${operator} ${secondOperand}`,
+              linea: currentLine,
+              descripcion: `Tipo incompatible en asignación: se esperaba ${varType} pero la operación resulta en ${resultType}`
+            })
+          }
+        } else {
+          // Asignación simple
+          const valueType = getValueType(value)
+          if (varType && valueType) {
+            const isCompatible = (
+              (varType === 'numero' && valueType === 'numero') ||
+              (varType === 'decimal' && (valueType === 'decimal' || valueType === 'numero')) ||
+              (varType === 'palabra' && valueType === 'palabra')
+            )
+
+            if (!isCompatible) {
+              errors.push({
+                lexema: `${variable} = ${value}`,
+                linea: currentLine,
+                descripcion: `Tipo incompatible en asignación: se esperaba ${varType} pero se recibió ${valueType}`
+              })
+            }
           }
         }
-        // Para variables ya declaradas u otros tokens
-        else if (declaredVariables[token]) {
-          symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: declaredVariables[token] })
-        }
-        else {
-          symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: '' })
-        }
+      }
+
+      // Actualizar tabla de símbolos
+      if (!/[=+\-*/;,]/.test(token)) {
+        symbolsMap.set(`${token}_${symbolsMap.size}`, {
+          lexema: token,
+          tipo: getValueType(token) || ''
+        })
       }
     }
 
+    setSemanticErrors(errors)
     setSymbolTable(Array.from(symbolsMap.values()))
     setInput(text)
   }
@@ -165,6 +212,35 @@ C = C + W2`
                       </table>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Nueva columna - Tabla de errores semánticos */}
+            {input && (
+              <div className="w-full md:w-1/3">
+                <h2 className="text-[#0A2F7B] text-2xl font-semibold mb-3">
+                  Errores Semánticos
+                </h2>
+                <div className="w-full">
+                  <table className="w-full border-collapse border border-[#0A2F7B] text-sm">
+                    <thead>
+                      <tr className="bg-[#0A2F7B] text-white">
+                        <th className="px-2 py-1 border border-[#0A2F7B]">Lexema</th>
+                        <th className="px-2 py-1 border border-[#0A2F7B]">Línea</th>
+                        <th className="px-2 py-1 border border-[#0A2F7B]">Descripción</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {semanticErrors.map((error, index) => (
+                        <tr key={index} className="bg-white">
+                          <td className="px-2 py-1 border border-[#0A2F7B] text-center">{error.lexema}</td>
+                          <td className="px-2 py-1 border border-[#0A2F7B] text-center">{error.linea}</td>
+                          <td className="px-2 py-1 border border-[#0A2F7B] text-center">{error.descripcion}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}
