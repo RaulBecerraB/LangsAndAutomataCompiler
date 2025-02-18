@@ -21,67 +21,71 @@ C = C + W2`
 
   const [input, setInput] = useState(defaultInput)
   const [symbolTable, setSymbolTable] = useState([])
-  
+
   // Función auxiliar para obtener símbolos únicos
   const getUniqueSymbols = (symbols) => {
     const uniqueMap = new Map();
-    
+
     symbols.forEach(symbol => {
       if (!uniqueMap.has(symbol.lexema)) {
         uniqueMap.set(symbol.lexema, symbol);
       }
     });
-    
+
     return Array.from(uniqueMap.values());
   }
 
   const analyzeInput = (text) => {
-    // Tokenización del input
     const tokens = text.match(/(".*?"|[A-Za-z_]\w*|\d*\.?\d+|[=+\-*/;,(){}]|[^ \t\n])/g) || []
-    
-    // Objeto para mantener el registro de variables declaradas
     let declaredVariables = {}
     let currentType = null
-    
-    // Usamos un Map para evitar duplicados, usando el lexema como clave
     const symbolsMap = new Map()
-    
-    // Procesamos los tokens secuencialmente
+
+    // Función auxiliar para determinar el tipo de un valor
+    const getValueType = (value) => {
+      if (value.startsWith('"')) return 'palabra'
+      if (value.includes('.')) return 'decimal'
+      if (!isNaN(value)) return 'numero'
+      return null
+    }
+
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i].trim()
       if (!token) continue
-      
-      // Verificamos si es un tipo de dato
+
       if (['numero', 'decimal', 'palabra'].includes(token.toLowerCase())) {
         currentType = token.toLowerCase()
-        
-        // Si es una nueva declaración (formato: "tipo identificador")
         if (i + 1 < tokens.length && /^[A-Za-z_]\w*$/.test(tokens[i + 1])) {
           symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: '' })
         }
         continue
       }
-      
-      // Si estamos después de un tipo, los identificadores son declaraciones
+
       if (currentType && /^[A-Za-z_]\w*$/.test(token)) {
         declaredVariables[token] = currentType
         symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: currentType })
       }
-      // Si es una coma, continuamos con el mismo tipo
       else if (token === ',') {
         symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: '' })
       }
-      // Si es punto y coma, terminamos la declaración
       else if (token === ';') {
         currentType = null
         symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: '' })
       }
-      // Para otros tokens
+      else if (token === '=') {
+        symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: '' })
+      }
       else {
-        // Solo asignamos tipo si la variable ya fue declarada
-        if (declaredVariables[token]) {
+        // Si es un valor después de un signo igual
+        if (i > 0 && tokens[i - 1] === '=') {
+          const valueType = getValueType(token)
+          symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: valueType || '' })
+        }
+        // Para variables ya declaradas u otros tokens
+        else if (declaredVariables[token]) {
           symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: declaredVariables[token] })
-        } else {
+        }
+        else {
           symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: '' })
         }
       }
@@ -106,9 +110,9 @@ C = C + W2`
         </div>
 
         <div className="p-6">
-          <div className="flex gap-6">
+          <div className="flex flex-col md:flex-row gap-6">
             {/* Columna izquierda - Entrada */}
-            <div className="w-1/4">
+            <div className="w-full md:w-1/4">
               <h2 className="text-[#0A2F7B] text-2xl font-semibold mb-3">
                 Entrada del compilador
               </h2>
@@ -123,7 +127,7 @@ C = C + W2`
 
             {/* Columna central - Tabla de símbolos */}
             {input && (
-              <div className="w-2/5">
+              <div className="w-full md:w-2/5">
                 <h2 className="text-[#0A2F7B] text-2xl font-semibold mb-3">
                   Tabla de símbolos
                 </h2>
