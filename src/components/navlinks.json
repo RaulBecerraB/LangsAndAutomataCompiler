@@ -5,10 +5,10 @@
     },
     {
       "name": "Validador de regex",
-      "href": "/validator"
+      "href": "/Validator"
     },
     {
       "name": "Tabla de símbolos",
-      "href": "/symbol-table"
+      "href": "/Symbol-table"
     }
 ]
