@@ -62,32 +62,52 @@ C = C + W2`
       return declaredVariables[value] || null
     }
 
-    // Procesar primero las declaraciones de variables
-    lines.forEach((line, index) => {
-      const lineTokens = line.trim().split(/[\s,]+/)
-      if (['numero', 'decimal', 'palabra'].includes(lineTokens[0].toLowerCase())) {
-        const type = lineTokens[0].toLowerCase()
-        lineTokens.slice(1).forEach(variable => {
-          if (/^[A-Za-z_]\w*$/.test(variable)) {
-            declaredVariables[variable] = type
-            symbolsMap.set(`${variable}_${symbolsMap.size}`, { lexema: variable, tipo: type })
-          }
-        })
-      }
-    })
-
-    // Procesar las operaciones y asignaciones
     let lastIndex = 0
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i].trim()
       if (!token) continue
 
-      // Encontrar la posición real del token en el texto
       lastIndex = text.indexOf(token, lastIndex)
       currentLine = getLineNumber(text, lastIndex)
       lastIndex += token.length
 
-      // Verificar si el token es una variable (identificador)
+      // Procesar declaraciones de variables como parte del análisis de lexemas
+      if (['numero', 'decimal', 'palabra'].includes(token.toLowerCase())) {
+        const type = token.toLowerCase()
+        symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: '' })
+        
+        // Obtener todos los tokens hasta el final de la línea actual
+        let j = i + 1
+        const currentLineNumber = currentLine
+        let variables = []
+        
+        while (j < tokens.length) {
+          const nextToken = tokens[j].trim()
+          // Si cambiamos de línea o encontramos un token que no es variable ni coma, terminamos
+          if (getLineNumber(text, text.indexOf(nextToken, lastIndex)) !== currentLineNumber) {
+            break
+          }
+          if (nextToken !== ',' && !/^[A-Za-z_]\w*$/.test(nextToken)) {
+            break
+          }
+          // Si es un identificador válido, lo guardamos
+          if (/^[A-Za-z_]\w*$/.test(nextToken)) {
+            variables.push(nextToken)
+          }
+          j++
+        }
+
+        // Procesar todas las variables encontradas
+        variables.forEach(variable => {
+          declaredVariables[variable] = type
+          symbolsMap.set(`${variable}_${symbolsMap.size}`, { lexema: variable, tipo: type })
+        })
+
+        i = j - 1
+        continue
+      }
+
+      // Verificar variables no declaradas (solo si no es una declaración)
       if (/^[A-Za-z_]\w*$/.test(token) && 
           !['numero', 'decimal', 'palabra'].includes(token) && 
           !declaredVariables.hasOwnProperty(token)) {
@@ -194,6 +214,7 @@ C = C + W2`
           lexema: token,
           tipo: getValueType(token) || ''
         })
+        console.log(symbolsMap)
       }
     }
 
