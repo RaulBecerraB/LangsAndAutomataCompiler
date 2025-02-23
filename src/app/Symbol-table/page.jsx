@@ -87,6 +87,17 @@ C = C + W2`
       currentLine = getLineNumber(text, lastIndex)
       lastIndex += token.length
 
+      // Verificar si el token es una variable (identificador)
+      if (/^[A-Za-z_]\w*$/.test(token) && 
+          !['numero', 'decimal', 'palabra'].includes(token) && 
+          !declaredVariables.hasOwnProperty(token)) {
+        errors.push({
+          lexema: token,
+          linea: currentLine,
+          descripcion: 'Variable no declarada'
+        })
+      }
+
       // Manejar las comillas como lexemas separados
       if (token === '"') {
         symbolsMap.set(`"_${symbolsMap.size}`, { lexema: '"', tipo: '' })
@@ -108,10 +119,30 @@ C = C + W2`
         let value = tokens[i + 1]
         const varType = declaredVariables[variable]
 
+        // Verificar si la variable está declarada
+        if (!declaredVariables.hasOwnProperty(variable)) {
+          errors.push({
+            lexema: variable,
+            linea: currentLine,
+            descripcion: 'Variable no declarada'
+          })
+          continue
+        }
+
         // Si hay una operación después del valor
         if (i + 2 < tokens.length && ['+', '-', '*', '/'].includes(tokens[i + 2])) {
           const operator = tokens[i + 2]
           const secondOperand = tokens[i + 3]
+
+          // Verificar si el segundo operando está declarado (si es una variable)
+          if (/^[A-Za-z_]\w*$/.test(secondOperand) && !declaredVariables.hasOwnProperty(secondOperand)) {
+            errors.push({
+              lexema: secondOperand,
+              linea: currentLine,
+              descripcion: 'Variable no declarada'
+            })
+            continue
+          }
 
           const firstOperandType = getValueType(value)
           const secondOperandType = getValueType(secondOperand)
@@ -197,7 +228,7 @@ C = C + W2`
                 onChange={(e) => analyzeInput(e.target.value)}
                 placeholder="Ingrese código para analizar..."
                 className="w-full px-4 py-3 rounded-lg border border-[#0A2F7B] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                rows="20"
+                rows="17"
               />
             </div>
 
