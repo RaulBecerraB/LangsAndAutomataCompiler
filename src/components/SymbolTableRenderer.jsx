@@ -1,6 +1,6 @@
 "use client"
-import { chunk } from './utils'
-import { getUniqueSymbols } from './utils'
+import { chunk } from '../app/Symbol-table/utils'
+import { getUniqueSymbols } from '../app/Symbol-table/utils'
 
 export default function SymbolTableRenderer({ input, symbolTable, semanticErrors, onInputChange }) {
   return (

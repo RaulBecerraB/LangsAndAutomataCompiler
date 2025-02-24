@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect } from 'react'
-import SymbolTableRenderer from './SymbolTableRenderer'
+import SymbolTableRenderer from '../../components/SymbolTableRenderer'
 import { TypeChecker } from './TypeChecker'
 import { SymbolTableManager } from './SymbolTableManager'
 import { ErrorManager } from './ErrorManager'
