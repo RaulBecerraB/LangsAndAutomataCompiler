@@ -97,19 +97,19 @@ C = C + W2`
         continue
       }
 
-      // Verificar variables no declaradas
-      if (esTokenNoDeclarado(token, gestorTablaSimbolos)) {
-        gestorErrores.agregarError(token, lineaActual, 'Variable indefinida')
-      }
+        // Verificar variables no declaradas
+        if (esTokenNoDeclarado(token, gestorTablaSimbolos)) {
+          gestorErrores.agregarError(token, lineaActual, 'Variable indefinida')
+        }
 
-      // Verificar asignaciones y operaciones
-      if (esAsignacionValida(token, i, tokens)) {
-        manejarAsignacion(
-          tokens, i, lineaActual,
-          gestorTablaSimbolos,
-          gestorErrores
-        )
-      }
+        // Verificar asignaciones y operaciones
+        if (esAsignacionValida(token, i, tokens)) {
+          manejarAsignacion(
+            tokens, i, lineaActual,
+            gestorTablaSimbolos,
+            gestorErrores
+          )
+        }
 
       // Agregar todos los símbolos (incluyendo especiales)
       const tipo = VerificadorTipos.obtenerTipoValor(token, gestorTablaSimbolos.variablesDeclaradas)
