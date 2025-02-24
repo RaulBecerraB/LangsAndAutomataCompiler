@@ -14,4 +14,9 @@ export function getUniqueSymbols(symbols) {
     }
   });
   return Array.from(uniqueMap.values());
+}
+
+export const isArithmeticOperation = (tokens, currentIndex) => {
+  return currentIndex + 2 < tokens.length && 
+         ['+', '-', '*', '/'].includes(tokens[currentIndex + 2]);
 } 

@@ -14,6 +14,7 @@ export class ErrorManager {
   }
 
   getErrors() {
+    console.log(this.errors)
     return this.errors
   }
 } 
