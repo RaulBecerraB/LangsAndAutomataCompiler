@@ -31,13 +31,13 @@ export default function SymbolTableRenderer({ input, symbolTable, semanticErrors
             {/* Columna central - Tabla de símbolos */}
             {input && (
               <div className="w-full md:w-2/5">
-                <h2 className="text-[#0A2F7B] text-2xl font-semibold mb-3">
+                <h2 className="text-[#0A2F7B] text-2xl font-semibold mb-3 text-center">
                   Tabla de símbolos
                 </h2>
-                <div className="flex flex-wrap gap-4">
+                <div className="flex flex-wrap gap-4 justify-center">
                   {chunk(getUniqueSymbols(symbolTable), 15).map((tableChunk, chunkIndex) => (
                     <div key={chunkIndex} className="w-[200px]">
-                      <table className="w-full border-collapse border border-[#0A2F7B] text-sm">
+                      <table className="w-full border-collapse border border-[#0A2F7B] text-sm mx-auto">
                         <thead>
                           <tr className="bg-[#0A2F7B] text-white">
                             <th className="px-2 py-1 border border-[#0A2F7B]">Lexema</th>

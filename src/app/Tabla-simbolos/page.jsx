@@ -44,14 +44,14 @@ C = C + W2`
     ///////////////////////////////////////////////////////////////////////////////
     //Casos de uso: ANALIZADOR
     ///////////////////////////////////////////////////////////////////////////////
-    //Paso 1: Tokenización de la entrada
+    //Paso 1: Dividir el texto en tokens usando una expresión regular
     const tokens = texto.match(EXPRESIONES.ANALIZADOR) || []
     ///////////////////////////////////////////////////////////////////////////////
-    //Paso 2: Crear gestores
+    //Paso 2: Crear gestores, aquí se almacenan los errores y la tabla de simbolos
     const gestorTablaSimbolos = new GestorTablaSimbolos()
     const gestorErrores = new GestorErrores()
 
-    //Paso 3: Obtener numero de linea
+    //Paso 3: Definir variables para obtener numero de linea
     let lineaActual = 1
     let ultimoIndice = 0
 
@@ -80,11 +80,11 @@ C = C + W2`
           const siguienteToken = tokens[j].trim()
           if (esLineaDiferente(texto, siguienteToken, ultimoIndice, numeroLineaActual, obtenerNumeroLinea)) break
           if (esTokenDeclaracionInvalido(siguienteToken)) break
-          
+
           if (esTokenVariableValido(siguienteToken)) {
             //Paso 4.3.1.2: Agregar variable
             variables.push(siguienteToken)
-            
+
             // Verificar si el siguiente token es una coma y agregarla después de la variable
             if (j + 1 < tokens.length && tokens[j + 1].trim() === ',') {
               gestorTablaSimbolos.agregarSimbolo(tokens[j + 1].trim())
@@ -97,19 +97,19 @@ C = C + W2`
         continue
       }
 
-        // Verificar variables no declaradas
-        if (esTokenNoDeclarado(token, gestorTablaSimbolos)) {
-          gestorErrores.agregarError(token, lineaActual, 'Variable indefinida')
-        }
+      // Verificar variables no declaradas
+      if (esTokenNoDeclarado(token, gestorTablaSimbolos)) {
+        gestorErrores.agregarError(token, lineaActual, 'Variable indefinida')
+      }
 
-        // Verificar asignaciones y operaciones
-        if (esAsignacionValida(token, i, tokens)) {
-          manejarAsignacion(
-            tokens, i, lineaActual,
-            gestorTablaSimbolos,
-            gestorErrores
-          )
-        }
+      // Verificar asignaciones y operaciones
+      if (esAsignacionValida(token, i, tokens)) {
+        manejarAsignacion(
+          tokens, i, lineaActual,
+          gestorTablaSimbolos,
+          gestorErrores
+        )
+      }
 
       // Agregar todos los símbolos (incluyendo especiales)
       const tipo = VerificadorTipos.obtenerTipoValor(token, gestorTablaSimbolos.variablesDeclaradas)
@@ -139,7 +139,7 @@ C = C + W2`
         tokens, i, lineaActual, variable, valor,
         gestorTablaSimbolos, gestorErrores
       )
-     ///////////////////////////////////////////////////////////////////////////////
+      ///////////////////////////////////////////////////////////////////////////////
     } else {
       ///////////////////////////////////////////////////////////////////////////////
       //Caso de uso: SI ES ASIGNACIÓN INCOMPATIBLE
@@ -153,7 +153,7 @@ C = C + W2`
         )
       }
     }
-      ///////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////
   }
 
   const manejarOperacion = (tokens, i, lineaActual, variable, valor, gestorTablaSimbolos, gestorErrores) => {

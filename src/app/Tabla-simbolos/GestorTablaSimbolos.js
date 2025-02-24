@@ -1,6 +1,8 @@
 export class GestorTablaSimbolos {
   constructor() {
     this.mapaSimbolos = new Map()
+    //Almacena las variables declaradas
+    //Ejemplo: { variable: 'numero' }
     this.variablesDeclaradas = {}
   }
 
@@ -14,6 +16,7 @@ export class GestorTablaSimbolos {
   declararVariables(tipo, variables) {
     variables.forEach(variable => {
       this.variablesDeclaradas[variable] = tipo
+      console.log(this.variablesDeclaradas)
       this.agregarSimbolo(variable, tipo)
     })
   }
@@ -23,6 +26,7 @@ export class GestorTablaSimbolos {
   }
 
   obtenerTablaSimbolos() {
+    console.log(this.mapaSimbolos)
     return Array.from(this.mapaSimbolos.values())
   }
 } 
