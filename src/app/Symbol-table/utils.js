@@ -1,3 +1,5 @@
+import { REGEX } from './regex'
+
 export function chunk(array, size) {
   const chunks = [];
   for (let i = 0; i < array.length; i += size) {
@@ -22,7 +24,7 @@ export const isArithmeticOperation = (tokens, currentIndex) => {
 }
 
 export const isValidIdentifier = (identifier) => {
-  return /^[A-Za-z_]\w*$/.test(identifier);
+  return REGEX.VALID_IDENTIFIER.test(identifier);
 }
 
 export const isUndeclaredVariable = (variable, symbolTableManager) => {
@@ -48,7 +50,7 @@ export const isValidVariableToken = (token) => {
 }
 
 export const isSpecialSymbol = (token) => {
-  return /[,;]/.test(token);
+  return REGEX.SPECIAL_SYMBOLS.test(token);
 }
 
 export const isValidAssignment = (token, index, tokens) => {

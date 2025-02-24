@@ -5,6 +5,7 @@ import { TypeChecker } from './TypeChecker'
 import { SymbolTableManager } from './SymbolTableManager'
 import { ErrorManager } from './ErrorManager'
 import {isUndeclaredVariable, isUndeclaredToken, isDifferentLine, isInvalidDeclarationToken, isValidVariableToken, isArithmeticOperation, isSpecialSymbol, isValidAssignment, isDataType } from './utils'
+import { REGEX } from './regex'
 
 export default function SymbolTable() {
   const defaultInput = `numero A,B,C
@@ -29,7 +30,7 @@ C = C + W2`
   const [semanticErrors, setSemanticErrors] = useState([])
 
   const analyzeInput = (text) => {
-    const tokens = text.match(/(".*?"|[A-Za-z_]\w*|\d*\.?\d+|[=+\-*/;,(){}]|"|[^ \t\n])/g) || []
+    const tokens = text.match(REGEX.TOKENIZER) || []
     const symbolTableManager = new SymbolTableManager()
     const errorManager = new ErrorManager()
     let currentLine = 1
