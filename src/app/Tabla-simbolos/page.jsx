@@ -13,7 +13,7 @@ import {
   esTokenDeclaracionInvalido,
   esTokenVariableValido,
   esSimboloEspecial,
-  esAsignacionValida,
+  esAsignacion,
   esTipoDato,
   obtenerNumeroLinea
 } from './utilidades'
@@ -57,16 +57,31 @@ C = C + W2`
 
     //Paso 4: Procesar tokens y obtener numero de linea
     for (let i = 0; i < tokens.length; i++) {
-      //Paso 4.1: Obtener token
       const token = tokens[i].trim()
       if (!token) continue
 
-      //Paso 4.2: Obtener numero de linea
       ultimoIndice = texto.indexOf(token, ultimoIndice)
       lineaActual = obtenerNumeroLinea(texto, ultimoIndice)
       ultimoIndice += token.length
 
-      //Paso 4.3: Procesar declaraciones de variables
+      // Manejar tokens dentro de strings
+      if (token === '"' || token === "'") {
+        // Agregar la comilla de apertura a la tabla de símbolos
+        gestorTablaSimbolos.agregarSimbolo(token)
+
+        // Avanzar hasta encontrar la comilla de cierre
+        i++
+        while (i < tokens.length && tokens[i] !== '"' && tokens[i] !== "'") {
+          gestorTablaSimbolos.agregarSimbolo(tokens[i].trim(), 'palabra')
+          i++
+        }
+        // Agregar la comilla de cierre a la tabla de símbolos
+        if (i < tokens.length) {
+          gestorTablaSimbolos.agregarSimbolo(tokens[i])
+        }
+        continue
+      }
+
       if (esTipoDato(token)) {
         const tipo = token.toLowerCase()
         gestorTablaSimbolos.agregarSimbolo(token)
@@ -97,13 +112,12 @@ C = C + W2`
         continue
       }
 
-      // Verificar variables no declaradas
-      if (esTokenNoDeclarado(token, gestorTablaSimbolos)) {
+      // Verificar variables no declaradas solo si no es un símbolo especial
+      if (!esSimboloEspecial(token) && esTokenNoDeclarado(token, gestorTablaSimbolos)) {
         gestorErrores.agregarError(token, lineaActual, 'Variable indefinida')
       }
 
-      // Verificar asignaciones y operaciones
-      if (esAsignacionValida(token, i, tokens)) {
+      if (esAsignacion(token, i, tokens)) {
         manejarAsignacion(
           tokens, i, lineaActual,
           gestorTablaSimbolos,
@@ -111,7 +125,6 @@ C = C + W2`
         )
       }
 
-      // Agregar todos los símbolos (incluyendo especiales)
       const tipo = VerificadorTipos.obtenerTipoValor(token, gestorTablaSimbolos.variablesDeclaradas)
       gestorTablaSimbolos.agregarSimbolo(token, tipo)
     }
@@ -131,19 +144,24 @@ C = C + W2`
       return
     }
 
-    ///////////////////////////////////////////////////////////////////////////////
-    //Caso de uso: SI ES OPERACIÓN ARITMÉTICA
-    ///////////////////////////////////////////////////////////////////////////////
+    // Nuevo: Manejar strings que vienen como tokens separados
+    if (valor === '"' || valor === "'") {
+      // Si el valor empieza con comillas, concatenamos los tokens hasta encontrar la comilla de cierre
+      let stringCompleto = ''
+      let j = i + 2  // Empezamos después de la comilla de apertura
+      while (j < tokens.length && tokens[j] !== '"' && tokens[j] !== "'") {
+        stringCompleto += tokens[j].trim()
+        j++
+      }
+      valor = stringCompleto
+    }
+
     if (esOperacionAritmetica(tokens, i)) {
       manejarOperacion(
         tokens, i, lineaActual, variable, valor,
         gestorTablaSimbolos, gestorErrores
       )
-      ///////////////////////////////////////////////////////////////////////////////
     } else {
-      ///////////////////////////////////////////////////////////////////////////////
-      //Caso de uso: SI ES ASIGNACIÓN INCOMPATIBLE
-      ///////////////////////////////////////////////////////////////////////////////
       const tipoValor = VerificadorTipos.obtenerTipoValor(valor, gestorTablaSimbolos.variablesDeclaradas)
       if (!VerificadorTipos.esCompatible(tipoVariable, tipoValor)) {
         gestorErrores.agregarError(
@@ -153,7 +171,6 @@ C = C + W2`
         )
       }
     }
-    ///////////////////////////////////////////////////////////////////////////////
   }
 
   const manejarOperacion = (tokens, i, lineaActual, variable, valor, gestorTablaSimbolos, gestorErrores) => {

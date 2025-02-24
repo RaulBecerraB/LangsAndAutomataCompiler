@@ -50,10 +50,10 @@ export const esTokenVariableValido = (token) => {
 }
 
 export const esSimboloEspecial = (token) => {
-  return token !== '"' && token !== "'" && EXPRESIONES.SIMBOLOS_ESPECIALES.test(token);
+  return EXPRESIONES.SIMBOLOS_ESPECIALES.test(token);
 }
 
-export const esAsignacionValida = (token, indice, tokens) => {
+export const esAsignacion = (token, indice, tokens) => {
   return token === '=' && indice > 0 && indice < tokens.length - 1;
 }
 

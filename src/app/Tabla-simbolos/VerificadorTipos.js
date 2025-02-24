@@ -1,3 +1,5 @@
+import { esSimboloEspecial } from './utilidades'
+
 export class VerificadorTipos {
   static compatibilidadTipos = {
     numero: { numero: true, decimal: false, palabra: false },
@@ -13,11 +15,10 @@ export class VerificadorTipos {
 
   static obtenerTipoValor(valor, variablesDeclaradas) {
     if (!valor) return ''
-    if (valor === '"') return ''
-    if (valor.startsWith('"') && valor.endsWith('"')) return 'palabra'
-    if (valor.includes('.')) return 'decimal'
-    if (!isNaN(valor)) return 'numero'
-    return variablesDeclaradas[valor] || null
+    if (/^\d+\.\d+$/.test(valor)) return 'decimal'
+    if (/^\d+$/.test(valor)) return 'numero'
+    if (esSimboloEspecial(valor)) return ''
+    return variablesDeclaradas[valor] || 'palabra'
   }
 
   static esCompatible(tipoVariable, tipoValor) {
