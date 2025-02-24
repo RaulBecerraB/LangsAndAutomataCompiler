@@ -4,6 +4,7 @@ import SymbolTableRenderer from './SymbolTableRenderer'
 import { TypeChecker } from './TypeChecker'
 import { SymbolTableManager } from './SymbolTableManager'
 import { ErrorManager } from './ErrorManager'
+import {isUndeclaredVariable, isUndeclaredToken, isDifferentLine, isInvalidDeclarationToken, isValidVariableToken, isArithmeticOperation, isSpecialSymbol, isValidAssignment, isDataType } from './utils'
 
 export default function SymbolTable() {
   const defaultInput = `numero A,B,C
@@ -21,8 +22,7 @@ F = 2.33
 D = E + F
 F = E / W2
 W2 = W3 * D
-C = C + W2
-asd`
+C = C + W2`
 
   const [input, setInput] = useState(defaultInput)
   const [symbolTable, setSymbolTable] = useState([])
@@ -48,7 +48,7 @@ asd`
       lastIndex += token.length
 
       // Procesar declaraciones de variables
-      if (['numero', 'decimal', 'palabra'].includes(token.toLowerCase())) {
+      if (isDataType(token)) {
         const type = token.toLowerCase()
         symbolTableManager.addSymbol(token)
 
@@ -57,9 +57,9 @@ asd`
         let variables = []
         while (j < tokens.length) {
           const nextToken = tokens[j].trim()
-          if (getLineNumber(text, text.indexOf(nextToken, lastIndex)) !== currentLineNumber) break
-          if (nextToken !== ',' && !/^[A-Za-z_]\w*$/.test(nextToken)) break
-          if (/^[A-Za-z_]\w*$/.test(nextToken)) {
+          if (isDifferentLine(text, nextToken, lastIndex, currentLineNumber, getLineNumber)) break
+          if (isInvalidDeclarationToken(nextToken)) break
+          if (isValidVariableToken(nextToken)) {
             variables.push(nextToken)
           }
           j++
@@ -70,14 +70,12 @@ asd`
       }
 
       // Verificar variables no declaradas (solo si no es una declaración)
-      if (/^[A-Za-z_]\w*$/.test(token) && 
-          !['numero', 'decimal', 'palabra'].includes(token) && 
-          !symbolTableManager.isVariableDeclared(token)) {
+      if (isUndeclaredToken(token, symbolTableManager)) {
         errorManager.addError(token, currentLine, 'Variable indefinida')
       }
 
       // Verificar asignaciones y operaciones
-      if (token === '=' && i > 0 && i < tokens.length - 1) {
+      if (isValidAssignment(token, i, tokens)) {
         handleAssignment(
           tokens, i, currentLine,
           symbolTableManager,
@@ -86,7 +84,7 @@ asd`
       }
 
       // Agregar otros símbolos
-      if (!/[,;]/.test(token)) {
+      if (!isSpecialSymbol(token)) {
         const tipo = TypeChecker.getValueType(token, symbolTableManager.declaredVariables)
         symbolTableManager.addSymbol(token, tipo)
       }
@@ -108,7 +106,7 @@ asd`
     }
 
     // Caso de operación aritmética
-    if (i + 2 < tokens.length && ['+', '-', '*', '/'].includes(tokens[i + 2])) {
+    if (isArithmeticOperation(tokens, i)) {
       handleOperation(
         tokens, i, currentLine, variable, value,
         symbolTableManager, errorManager
@@ -131,7 +129,7 @@ asd`
     const secondOperand = tokens[i + 3]
     const varType = symbolTableManager.declaredVariables[variable]
 
-    if (/^[A-Za-z_]\w*$/.test(secondOperand) && !symbolTableManager.isVariableDeclared(secondOperand)) {
+    if (isUndeclaredVariable(secondOperand, symbolTableManager)) {
       errorManager.addError(secondOperand, currentLine, 'Variable indefinida')
       return
     }

@@ -19,4 +19,42 @@ export function getUniqueSymbols(symbols) {
 export const isArithmeticOperation = (tokens, currentIndex) => {
   return currentIndex + 2 < tokens.length && 
          ['+', '-', '*', '/'].includes(tokens[currentIndex + 2]);
+}
+
+export const isValidIdentifier = (identifier) => {
+  return /^[A-Za-z_]\w*$/.test(identifier);
+}
+
+export const isUndeclaredVariable = (variable, symbolTableManager) => {
+  return isValidIdentifier(variable) && !symbolTableManager.isVariableDeclared(variable);
+}
+
+export const isUndeclaredToken = (token, symbolTableManager) => {
+  return isValidIdentifier(token) && 
+         !['numero', 'decimal', 'palabra'].includes(token) && 
+         !symbolTableManager.isVariableDeclared(token);
+}
+
+export const isDifferentLine = (text, token, lastIndex, currentLineNumber, getLineNumber) => {
+  return getLineNumber(text, text.indexOf(token, lastIndex)) !== currentLineNumber;
+}
+
+export const isInvalidDeclarationToken = (token) => {
+  return token !== ',' && !isValidIdentifier(token);
+}
+
+export const isValidVariableToken = (token) => {
+  return isValidIdentifier(token);
+}
+
+export const isSpecialSymbol = (token) => {
+  return /[,;]/.test(token);
+}
+
+export const isValidAssignment = (token, index, tokens) => {
+  return token === '=' && index > 0 && index < tokens.length - 1;
+}
+
+export const isDataType = (token) => {
+  return ['numero', 'decimal', 'palabra'].includes(token.toLowerCase());
 } 
