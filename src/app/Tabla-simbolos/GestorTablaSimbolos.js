@@ -1,9 +1,22 @@
 export class GestorTablaSimbolos {
   constructor() {
+    //Almacena tal cual el contenido de la tabla de simbolos
     this.mapaSimbolos = new Map()
     //Almacena las variables declaradas
-    //Ejemplo: { variable: 'numero' }
     this.variablesDeclaradas = {}
+    /* Ejemplo de variablesDeclaradas:
+    {
+      "A": "numero",
+      "B": "numero",
+      "C": "numero",
+      "D": "decimal",
+      "E": "decimal",
+      "F": "decimal",
+      "W1": "palabra",
+      "W2": "palabra",
+      "W3": "palabra"
+    }
+    */
   }
 
   agregarSimbolo(token, tipo = '') {
