@@ -21,7 +21,8 @@ F = 2.33
 D = E + F
 F = E / W2
 W2 = W3 * D
-C = C + W2`
+C = C + W2
+asd`
 
   const [input, setInput] = useState(defaultInput)
   const [symbolTable, setSymbolTable] = useState([])
@@ -66,6 +67,13 @@ C = C + W2`
         symbolTableManager.declareVariables(type, variables)
         i = j - 1
         continue
+      }
+
+      // Verificar variables no declaradas (solo si no es una declaración)
+      if (/^[A-Za-z_]\w*$/.test(token) && 
+          !['numero', 'decimal', 'palabra'].includes(token) && 
+          !symbolTableManager.isVariableDeclared(token)) {
+        errorManager.addError(token, currentLine, 'Variable indefinida')
       }
 
       // Verificar asignaciones y operaciones
