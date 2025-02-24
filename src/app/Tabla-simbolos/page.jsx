@@ -51,53 +51,58 @@ C = C + W2`
 
     let ultimoIndice = 0
     for (let i = 0; i < tokens.length; i++) {
-      const token = tokens[i].trim()
-      if (!token) continue
+      const tokenOriginal = tokens[i]
+      // Separar las comillas como tokens independientes
+      const tokensSeparados = tokenOriginal.split(/(["'])/).filter(Boolean).map(t => t.trim())
+      
+      for (const token of tokensSeparados) {
+        if (!token) continue
 
-      ultimoIndice = texto.indexOf(token, ultimoIndice)
-      lineaActual = obtenerNumeroLinea(texto, ultimoIndice)
-      ultimoIndice += token.length
+        ultimoIndice = texto.indexOf(token, ultimoIndice)
+        lineaActual = obtenerNumeroLinea(texto, ultimoIndice)
+        ultimoIndice += token.length
 
-      // Procesar declaraciones de variables
-      if (esTipoDato(token)) {
-        const tipo = token.toLowerCase()
-        gestorTablaSimbolos.agregarSimbolo(token)
+        // Procesar declaraciones de variables
+        if (esTipoDato(token)) {
+          const tipo = token.toLowerCase()
+          gestorTablaSimbolos.agregarSimbolo(token)
 
-        let j = i + 1
-        const numeroLineaActual = lineaActual
-        let variables = []
-        while (j < tokens.length) {
-          const siguienteToken = tokens[j].trim()
-          if (esLineaDiferente(texto, siguienteToken, ultimoIndice, numeroLineaActual, obtenerNumeroLinea)) break
-          if (esTokenDeclaracionInvalido(siguienteToken)) break
-          if (esTokenVariableValido(siguienteToken)) {
-            variables.push(siguienteToken)
+          let j = i + 1
+          const numeroLineaActual = lineaActual
+          let variables = []
+          while (j < tokens.length) {
+            const siguienteToken = tokens[j].trim()
+            if (esLineaDiferente(texto, siguienteToken, ultimoIndice, numeroLineaActual, obtenerNumeroLinea)) break
+            if (esTokenDeclaracionInvalido(siguienteToken)) break
+            if (esTokenVariableValido(siguienteToken)) {
+              variables.push(siguienteToken)
+            }
+            j++
           }
-          j++
+          gestorTablaSimbolos.declararVariables(tipo, variables)
+          i = j - 1
+          continue
         }
-        gestorTablaSimbolos.declararVariables(tipo, variables)
-        i = j - 1
-        continue
-      }
 
-      // Verificar variables no declaradas
-      if (esTokenNoDeclarado(token, gestorTablaSimbolos)) {
-        gestorErrores.agregarError(token, lineaActual, 'Variable indefinida')
-      }
+        // Verificar variables no declaradas
+        if (esTokenNoDeclarado(token, gestorTablaSimbolos)) {
+          gestorErrores.agregarError(token, lineaActual, 'Variable indefinida')
+        }
 
-      // Verificar asignaciones y operaciones
-      if (esAsignacionValida(token, i, tokens)) {
-        manejarAsignacion(
-          tokens, i, lineaActual,
-          gestorTablaSimbolos,
-          gestorErrores
-        )
-      }
+        // Verificar asignaciones y operaciones
+        if (esAsignacionValida(token, i, tokens)) {
+          manejarAsignacion(
+            tokens, i, lineaActual,
+            gestorTablaSimbolos,
+            gestorErrores
+          )
+        }
 
-      // Agregar otros símbolos
-      if (!esSimboloEspecial(token)) {
-        const tipo = VerificadorTipos.obtenerTipoValor(token, gestorTablaSimbolos.variablesDeclaradas)
-        gestorTablaSimbolos.agregarSimbolo(token, tipo)
+        // Agregar otros símbolos (incluyendo las comillas)
+        if (!esSimboloEspecial(token)) {
+          const tipo = VerificadorTipos.obtenerTipoValor(token, gestorTablaSimbolos.variablesDeclaradas)
+          gestorTablaSimbolos.agregarSimbolo(token, tipo)
+        }
       }
     }
 
