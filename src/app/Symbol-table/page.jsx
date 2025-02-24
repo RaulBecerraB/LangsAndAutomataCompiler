@@ -9,7 +9,7 @@ A = "Hola"
 E = "Mundo"
 C = 123
 W1 = 22
-W2= "Hi"
+W2 = "Hi"
 W3 = "World"
 D = 12.2
 E = 3.14
@@ -26,13 +26,11 @@ C = C + W2`
   // Función auxiliar para obtener símbolos únicos
   const getUniqueSymbols = (symbols) => {
     const uniqueMap = new Map();
-
     symbols.forEach(symbol => {
       if (!uniqueMap.has(symbol.lexema)) {
         uniqueMap.set(symbol.lexema, symbol);
       }
     });
-
     return Array.from(uniqueMap.values());
   }
 
@@ -43,6 +41,7 @@ C = C + W2`
     const symbolsMap = new Map()
     const errors = []
     let currentLine = 1
+    let errorCounter = 1
 
     // Función para obtener el número de línea basado en la posición del texto
     const getLineNumber = (text, position) => {
@@ -71,60 +70,50 @@ C = C + W2`
       currentLine = getLineNumber(text, lastIndex)
       lastIndex += token.length
 
-      // Procesar declaraciones de variables como parte del análisis de lexemas
+      // Procesar declaraciones de variables (numero, decimal, palabra)
       if (['numero', 'decimal', 'palabra'].includes(token.toLowerCase())) {
         const type = token.toLowerCase()
         symbolsMap.set(`${token}_${symbolsMap.size}`, { lexema: token, tipo: '' })
-        
+
         // Obtener todos los tokens hasta el final de la línea actual
         let j = i + 1
         const currentLineNumber = currentLine
         let variables = []
-        
         while (j < tokens.length) {
           const nextToken = tokens[j].trim()
-          // Si cambiamos de línea o encontramos un token que no es variable ni coma, terminamos
           if (getLineNumber(text, text.indexOf(nextToken, lastIndex)) !== currentLineNumber) {
             break
           }
           if (nextToken !== ',' && !/^[A-Za-z_]\w*$/.test(nextToken)) {
             break
           }
-          // Si es un identificador válido, lo guardamos
           if (/^[A-Za-z_]\w*$/.test(nextToken)) {
             variables.push(nextToken)
           }
           j++
         }
-
-        // Procesar todas las variables encontradas
+        // Registrar cada variable declarada
         variables.forEach(variable => {
           declaredVariables[variable] = type
           symbolsMap.set(`${variable}_${symbolsMap.size}`, { lexema: variable, tipo: type })
         })
-
         i = j - 1
         continue
       }
 
-      // Verificar variables no declaradas (solo si no es una declaración)
-      if (/^[A-Za-z_]\w*$/.test(token) && 
-          !['numero', 'decimal', 'palabra'].includes(token) && 
-          !declaredVariables.hasOwnProperty(token)) {
+      // Verificar variables no declaradas (si no es parte de una declaración)
+      if (/^[A-Za-z_]\w*$/.test(token) &&
+        !['numero', 'decimal', 'palabra'].includes(token) &&
+        !declaredVariables.hasOwnProperty(token)) {
         errors.push({
+          token: `ErrSem${errorCounter++}`,
           lexema: token,
           linea: currentLine,
-          descripcion: 'Variable no declarada'
+          descripcion: 'Variable indefinida'
         })
       }
 
-      // Manejar las comillas como lexemas separados
-      if (token === '"') {
-        symbolsMap.set(`"_${symbolsMap.size}`, { lexema: '"', tipo: '' })
-        continue
-      }
-
-      // Eliminar las comillas al almacenar el token en la tabla de símbolos
+      // Almacenar literales de cadena sin las comillas
       if (token.startsWith('"') && token.endsWith('"')) {
         const cleanToken = token.slice(1, -1)
         symbolsMap.set(`${cleanToken}_${symbolsMap.size}`, {
@@ -142,24 +131,25 @@ C = C + W2`
         // Verificar si la variable está declarada
         if (!declaredVariables.hasOwnProperty(variable)) {
           errors.push({
+            token: `ErrSem${errorCounter++}`,
             lexema: variable,
             linea: currentLine,
-            descripcion: 'Variable no declarada'
+            descripcion: 'Variable indefinida'
           })
           continue
         }
 
-        // Si hay una operación después del valor
+        // Caso de operación aritmética
         if (i + 2 < tokens.length && ['+', '-', '*', '/'].includes(tokens[i + 2])) {
           const operator = tokens[i + 2]
           const secondOperand = tokens[i + 3]
 
-          // Verificar si el segundo operando está declarado (si es una variable)
           if (/^[A-Za-z_]\w*$/.test(secondOperand) && !declaredVariables.hasOwnProperty(secondOperand)) {
             errors.push({
+              token: `ErrSem${errorCounter++}`,
               lexema: secondOperand,
               linea: currentLine,
-              descripcion: 'Variable no declarada'
+              descripcion: 'Variable indefinida'
             })
             continue
           }
@@ -167,24 +157,25 @@ C = C + W2`
           const firstOperandType = getValueType(value)
           const secondOperandType = getValueType(secondOperand)
 
-          // Validar tipos en operaciones
+          // Si alguno es de tipo palabra, se considera incompatibilidad
           if (firstOperandType === 'palabra' || secondOperandType === 'palabra') {
             errors.push({
+              token: `ErrSem${errorCounter++}`,
               lexema: `${value} ${operator} ${secondOperand}`,
               linea: currentLine,
-              descripcion: 'No se pueden realizar operaciones con tipos palabra'
+              descripcion: 'Incompatibilidad de tipos, palabra'
             })
             continue
           }
 
-          // Validar resultado de la operación con el tipo de la variable
-          const resultType = firstOperandType === 'decimal' || secondOperandType === 'decimal' ? 'decimal' : 'numero'
-
+          // Determinar tipo resultante (si alguno es decimal, resulta decimal; sino, número)
+          const resultType = (firstOperandType === 'decimal' || secondOperandType === 'decimal') ? 'decimal' : 'numero'
           if (varType !== resultType && !(varType === 'decimal' && resultType === 'numero')) {
             errors.push({
+              token: `ErrSem${errorCounter++}`,
               lexema: `${variable} = ${value} ${operator} ${secondOperand}`,
               linea: currentLine,
-              descripcion: `Tipo incompatible en asignación: se esperaba ${varType} pero la operación resulta en ${resultType}`
+              descripcion: `Incompatibilidad de tipos, ${varType}`
             })
           }
         } else {
@@ -196,25 +187,39 @@ C = C + W2`
               (varType === 'decimal' && (valueType === 'decimal' || valueType === 'numero')) ||
               (varType === 'palabra' && valueType === 'palabra')
             )
-
             if (!isCompatible) {
               errors.push({
-                lexema: `${variable},${value}`,
+                token: `ErrSem${errorCounter++}`,
+                lexema: `${variable}, ${value}`,
                 linea: currentLine,
-                descripcion: `Tipo incompatible en asignación: se esperaba ${varType} pero se recibió ${valueType}`
+                descripcion: `Incompatibilidad de tipos, ${varType}`
               })
             }
           }
         }
       }
 
-      // Actualizar tabla de símbolos
-      if (!/[=+\-*/;,]/.test(token)) {
+      // Procesar operadores aritméticos y de asignación
+      if (/[=+\-*/]/.test(token)) {
+        symbolsMap.set(`${token}_${symbolsMap.size}`, {
+          lexema: token,
+          tipo: ''
+        })
+        continue
+      }
+
+      // Manejar las comillas como lexemas separados
+      if (token === '"') {
+        symbolsMap.set(`"_${symbolsMap.size}`, { lexema: '"', tipo: '' })
+        continue
+      }
+
+      // Agregar otros tokens a la tabla de símbolos
+      if (!/[,;]/.test(token)) {
         symbolsMap.set(`${token}_${symbolsMap.size}`, {
           lexema: token,
           tipo: getValueType(token) || ''
         })
-        console.log(symbolsMap)
       }
     }
 
@@ -223,7 +228,6 @@ C = C + W2`
     setInput(text)
   }
 
-  // Move this useEffect after analyzeInput is defined
   useEffect(() => {
     analyzeInput(defaultInput)
   }, [])
@@ -284,7 +288,7 @@ C = C + W2`
               </div>
             )}
 
-            {/* Nueva columna - Tabla de errores semánticos */}
+            {/* Columna derecha - Tabla de errores semánticos */}
             {input && (
               <div className="w-full md:w-1/3">
                 <h2 className="text-[#0A2F7B] text-2xl font-semibold mb-3">
@@ -294,6 +298,7 @@ C = C + W2`
                   <table className="w-full border-collapse border border-[#0A2F7B] text-sm">
                     <thead>
                       <tr className="bg-[#0A2F7B] text-white">
+                        <th className="px-2 py-1 border border-[#0A2F7B]">Token</th>
                         <th className="px-2 py-1 border border-[#0A2F7B]">Lexema</th>
                         <th className="px-2 py-1 border border-[#0A2F7B]">Línea</th>
                         <th className="px-2 py-1 border border-[#0A2F7B]">Descripción</th>
@@ -302,6 +307,7 @@ C = C + W2`
                     <tbody>
                       {semanticErrors.map((error, index) => (
                         <tr key={index} className="bg-white">
+                          <td className="px-2 py-1 border border-[#0A2F7B] text-center">{error.token}</td>
                           <td className="px-2 py-1 border border-[#0A2F7B] text-center">{error.lexema}</td>
                           <td className="px-2 py-1 border border-[#0A2F7B] text-center">{error.linea}</td>
                           <td className="px-2 py-1 border border-[#0A2F7B] text-center">{error.descripcion}</td>
