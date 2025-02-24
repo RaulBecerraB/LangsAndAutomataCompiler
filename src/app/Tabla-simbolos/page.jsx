@@ -14,7 +14,8 @@ import {
   esTokenVariableValido,
   esSimboloEspecial,
   esAsignacionValida,
-  esTipoDato
+  esTipoDato,
+  obtenerNumeroLinea
 } from './utilidades'
 
 export default function TablaSimbolos() {
@@ -40,38 +41,54 @@ C = C + W2`
   const [erroresSemanticos, setErroresSemanticos] = useState([])
 
   const analizarEntrada = (texto) => {
+    ///////////////////////////////////////////////////////////////////////////////
+    //Casos de uso: ANALIZADOR
+    ///////////////////////////////////////////////////////////////////////////////
+    //Paso 1: Tokenización de la entrada
     const tokens = texto.match(EXPRESIONES.ANALIZADOR) || []
+    ///////////////////////////////////////////////////////////////////////////////
+    //Paso 2: Crear gestores
     const gestorTablaSimbolos = new GestorTablaSimbolos()
     const gestorErrores = new GestorErrores()
-    let lineaActual = 1
-    
-    const obtenerNumeroLinea = (texto, posicion) => {
-      return texto.substring(0, posicion).split('\n').length
-    }
 
+    //Paso 3: Obtener numero de linea
+    let lineaActual = 1
     let ultimoIndice = 0
+
+    //Paso 4: Procesar tokens y obtener numero de linea
     for (let i = 0; i < tokens.length; i++) {
+      //Paso 4.1: Obtener token
       const token = tokens[i].trim()
       if (!token) continue
 
+      //Paso 4.2: Obtener numero de linea
       ultimoIndice = texto.indexOf(token, ultimoIndice)
       lineaActual = obtenerNumeroLinea(texto, ultimoIndice)
       ultimoIndice += token.length
 
-      // Procesar declaraciones de variables
+      //Paso 4.3: Procesar declaraciones de variables
       if (esTipoDato(token)) {
         const tipo = token.toLowerCase()
         gestorTablaSimbolos.agregarSimbolo(token)
 
+        //Paso 4.3.1: Obtener variables
         let j = i + 1
         const numeroLineaActual = lineaActual
         let variables = []
         while (j < tokens.length) {
+          //Paso 4.3.1.1: Obtener siguiente token
           const siguienteToken = tokens[j].trim()
           if (esLineaDiferente(texto, siguienteToken, ultimoIndice, numeroLineaActual, obtenerNumeroLinea)) break
           if (esTokenDeclaracionInvalido(siguienteToken)) break
+          
           if (esTokenVariableValido(siguienteToken)) {
+            //Paso 4.3.1.2: Agregar variable
             variables.push(siguienteToken)
+            
+            // Verificar si el siguiente token es una coma y agregarla después de la variable
+            if (j + 1 < tokens.length && tokens[j + 1].trim() === ',') {
+              gestorTablaSimbolos.agregarSimbolo(tokens[j + 1].trim())
+            }
           }
           j++
         }
@@ -94,11 +111,9 @@ C = C + W2`
         )
       }
 
-      // Agregar otros símbolos
-      if (!esSimboloEspecial(token)) {
-        const tipo = VerificadorTipos.obtenerTipoValor(token, gestorTablaSimbolos.variablesDeclaradas)
-        gestorTablaSimbolos.agregarSimbolo(token, tipo)
-      }
+      // Agregar todos los símbolos (incluyendo especiales)
+      const tipo = VerificadorTipos.obtenerTipoValor(token, gestorTablaSimbolos.variablesDeclaradas)
+      gestorTablaSimbolos.agregarSimbolo(token, tipo)
     }
 
     setErroresSemanticos(gestorErrores.obtenerErrores())
@@ -116,14 +131,19 @@ C = C + W2`
       return
     }
 
-    // Caso de operación aritmética
+    ///////////////////////////////////////////////////////////////////////////////
+    //Caso de uso: SI ES OPERACIÓN ARITMÉTICA
+    ///////////////////////////////////////////////////////////////////////////////
     if (esOperacionAritmetica(tokens, i)) {
       manejarOperacion(
         tokens, i, lineaActual, variable, valor,
         gestorTablaSimbolos, gestorErrores
       )
+     ///////////////////////////////////////////////////////////////////////////////
     } else {
-      // Asignación simple
+      ///////////////////////////////////////////////////////////////////////////////
+      //Caso de uso: SI ES ASIGNACIÓN INCOMPATIBLE
+      ///////////////////////////////////////////////////////////////////////////////
       const tipoValor = VerificadorTipos.obtenerTipoValor(valor, gestorTablaSimbolos.variablesDeclaradas)
       if (!VerificadorTipos.esCompatible(tipoVariable, tipoValor)) {
         gestorErrores.agregarError(
@@ -133,22 +153,31 @@ C = C + W2`
         )
       }
     }
+      ///////////////////////////////////////////////////////////////////////////////
   }
 
   const manejarOperacion = (tokens, i, lineaActual, variable, valor, gestorTablaSimbolos, gestorErrores) => {
+    ///////////////////////////////////////////////////////////////////////////////
+    //Caso de uso: OPERACIONES ARITMETICAS
+    //Estas variables sirven como base para determinar si existe un error en la operación
+    ///////////////////////////////////////////////////////////////////////////////
     const operador = tokens[i + 2]
     const segundoOperando = tokens[i + 3]
     const tipoVariable = gestorTablaSimbolos.variablesDeclaradas[variable]
 
+    const tipoPrimerOperando = VerificadorTipos.obtenerTipoValor(valor, gestorTablaSimbolos.variablesDeclaradas)
+    const tipoSegundoOperando = VerificadorTipos.obtenerTipoValor(segundoOperando, gestorTablaSimbolos.variablesDeclaradas)
+    const tipoResultado = VerificadorTipos.obtenerTipoResultado(tipoPrimerOperando, tipoSegundoOperando)
+    ///////////////////////////////////////////////////////////////////////////////
+    //Casos de uso: ERRORES SEMANTICOS 
+    ///////////////////////////////////////////////////////////////////////////////
+    //Caso 1: Variable no declarada
     if (esVariableNoDeclarada(segundoOperando, gestorTablaSimbolos)) {
       gestorErrores.agregarError(segundoOperando, lineaActual, 'Variable indefinida')
       return
     }
 
-    const tipoPrimerOperando = VerificadorTipos.obtenerTipoValor(valor, gestorTablaSimbolos.variablesDeclaradas)
-    const tipoSegundoOperando = VerificadorTipos.obtenerTipoValor(segundoOperando, gestorTablaSimbolos.variablesDeclaradas)
-    const tipoResultado = VerificadorTipos.obtenerTipoResultado(tipoPrimerOperando, tipoSegundoOperando)
-
+    //Caso 2: Incompatibilidad de tipos
     if (!tipoResultado) {
       gestorErrores.agregarError(
         `${valor} ${operador} ${segundoOperando}`,
@@ -158,6 +187,7 @@ C = C + W2`
       return
     }
 
+    //Caso 3: Incompatibilidad de tipos
     if (!VerificadorTipos.esCompatible(tipoVariable, tipoResultado)) {
       gestorErrores.agregarError(
         `${variable} = ${valor} ${operador} ${segundoOperando}`,
@@ -165,6 +195,7 @@ C = C + W2`
         `Incompatibilidad de tipos, ${tipoVariable}`
       )
     }
+    ///////////////////////////////////////////////////////////////////////////////
   }
 
   useEffect(() => {

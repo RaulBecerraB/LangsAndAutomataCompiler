@@ -59,4 +59,8 @@ export const esAsignacionValida = (token, indice, tokens) => {
 
 export const esTipoDato = (token) => {
   return ['numero', 'decimal', 'palabra'].includes(token.toLowerCase());
+}
+
+export const obtenerNumeroLinea = (texto, posicion) => {
+  return texto.substring(0, posicion).split('\n').length
 } 
