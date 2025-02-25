@@ -109,6 +109,8 @@ C = C + W2`
         continue
       }
 
+      let variablesVerificadas = new Set(); // Agregamos un Set para trackear variables ya verificadas
+
       let tieneError = false;
       // Verificar variables no declaradas y nombres de variables inválidos
       if (!esSimboloEspecial(token) &&
@@ -119,12 +121,12 @@ C = C + W2`
         if (!esTokenVariableValido(token)) {
           gestorErrores.agregarError(token, lineaActual, 'Nombre de variable inválido')
           tieneError = true;
-          continue;
-        } else if (!gestorTablaSimbolos.esVariableDeclarada(token)) {
+        } else if (!gestorTablaSimbolos.esVariableDeclarada(token) && !variablesVerificadas.has(token)) {
           gestorErrores.agregarError(token, lineaActual, 'Variable indefinida')
+          variablesVerificadas.add(token); // Agregamos la variable al Set
           tieneError = true;
-          continue;
         }
+        if (tieneError) continue;
       }
 
       if (!tieneError && esAsignacion(token, i, tokens)) {
@@ -154,8 +156,7 @@ C = C + W2`
     const tipoVariable = gestorTablaSimbolos.variablesDeclaradas[variable]
 
     if (!gestorTablaSimbolos.esVariableDeclarada(variable)) {
-      gestorErrores.agregarError(variable, lineaActual, 'Variable indefinida')
-      return
+      return;
     }
 
     // Nuevo: Manejar strings que vienen como tokens separados
@@ -204,8 +205,7 @@ C = C + W2`
     ///////////////////////////////////////////////////////////////////////////////
     //Caso 1: Variable no declarada
     if (esVariableNoDeclarada(segundoOperando, gestorTablaSimbolos)) {
-      gestorErrores.agregarError(segundoOperando, lineaActual, 'Variable indefinida')
-      return
+      return;
     }
 
     //Caso 2: Incompatibilidad de tipos
