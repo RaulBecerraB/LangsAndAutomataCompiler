@@ -44,6 +44,7 @@ C = C + W2;`
     // Paso 1: Crear gestores
     const gestorTablaSimbolos = new GestorTablaSimbolos()
     const gestorErrores = new GestorErrores()
+    gestorErrores.reiniciarContador()
 
     // Paso 2: Verificar punto y coma al final de cada línea (una sola vez)
     const lineas = texto.split('\n')
@@ -55,6 +56,17 @@ C = C + W2;`
           index + 1,
           'Falta punto y coma (;) al final de la instrucción'
         )
+      }
+
+      // Verificar comillas sin cerrar en cada línea
+      const comillasEnLinea = (lineaTrimmed.match(/"/g) || []).length
+      if (comillasEnLinea % 2 !== 0) {
+        gestorErrores.agregarError(
+          lineaTrimmed,
+          index + 1,
+          'Falta comilla de cierre en la cadena'
+        )
+        return; // Saltar esta línea si tiene error de comillas
       }
     })
 
@@ -73,6 +85,21 @@ C = C + W2;`
       ultimoIndice = texto.indexOf(token, ultimoIndice)
       lineaActual = obtenerNumeroLinea(texto, ultimoIndice)
       ultimoIndice += token.length
+
+      // Si la línea tiene error de comillas, saltarla
+      const lineaActualTexto = lineas[lineaActual - 1]
+      const comillasEnLinea = (lineaActualTexto.match(/"/g) || []).length
+      if (comillasEnLinea % 2 !== 0) {
+        // Saltar al siguiente token que esté en la siguiente línea
+        while (i < tokens.length) {
+          const nextToken = tokens[i + 1]
+          if (!nextToken) break
+          const nextTokenLine = obtenerNumeroLinea(texto, texto.indexOf(nextToken, ultimoIndice))
+          if (nextTokenLine > lineaActual) break
+          i++
+        }
+        continue
+      }
 
       // Manejar tokens dentro de strings
       if (token === '"' || token === "'") {
@@ -146,7 +173,9 @@ C = C + W2;`
           manejarAsignacion(
             tokens, i, lineaActual,
             gestorTablaSimbolos,
-            gestorErrores
+            gestorErrores,
+            texto,
+            ultimoIndice
           );
         }
       }
@@ -155,12 +184,18 @@ C = C + W2;`
       gestorTablaSimbolos.agregarSimbolo(token, tipo)
     }
 
-    setErroresSemanticos(gestorErrores.obtenerErrores())
+    // Ordenar y recalcular tokens de errores
+    const erroresOrdenados = gestorErrores.obtenerErrores()
+    erroresOrdenados.forEach((error, index) => {
+      error.token = `ErrSem${index + 1}`
+    })
+
+    setErroresSemanticos(erroresOrdenados)
     setTablaSimbolos(gestorTablaSimbolos.obtenerTablaSimbolos())
     setEntrada(texto)
   }
 
-  const manejarAsignacion = (tokens, i, lineaActual, gestorTablaSimbolos, gestorErrores) => {
+  const manejarAsignacion = (tokens, i, lineaActual, gestorTablaSimbolos, gestorErrores, entrada, ultimoIndice) => {
     const variable = tokens[i - 1]
     let valor = tokens[i + 1]
     const tipoVariable = gestorTablaSimbolos.variablesDeclaradas[variable]
@@ -169,22 +204,57 @@ C = C + W2;`
       return;
     }
 
-    // Nuevo: Manejar strings que vienen como tokens separados
+    // Manejar strings que vienen como tokens separados
     if (valor === '"' || valor === "'") {
-      // Si el valor empieza con comillas, concatenamos los tokens hasta encontrar la comilla de cierre
       let stringCompleto = ''
       let j = i + 2  // Empezamos después de la comilla de apertura
+      let lineaInicial = lineaActual
+      let encontroComillaCierre = false
+
       while (j < tokens.length && tokens[j] !== '"' && tokens[j] !== "'") {
+        let posicionToken = entrada.indexOf(tokens[j], ultimoIndice)
+        let lineaToken = obtenerNumeroLinea(entrada, posicionToken)
+
+        if (lineaToken !== lineaInicial) {
+          gestorErrores.agregarError(
+            variable + ' = "' + stringCompleto + tokens[j - 1],
+            lineaInicial,
+            'Falta comilla de cierre en la cadena'
+          )
+          // Saltar al final de la línea actual
+          while (j < tokens.length) {
+            let nextTokenLine = obtenerNumeroLinea(entrada, entrada.indexOf(tokens[j], ultimoIndice))
+            if (nextTokenLine > lineaInicial) break;
+            j++;
+          }
+          return i = j - 1; // Actualizar el índice principal para saltar tokens
+        }
         stringCompleto += tokens[j].trim()
         j++
       }
+
+      if (j < tokens.length && (tokens[j] === '"' || tokens[j] === "'")) {
+        encontroComillaCierre = true;
+      }
+
+      // Si no se encontró la comilla de cierre, agregar error
+      if (!encontroComillaCierre) {
+        gestorErrores.agregarError(
+          variable + ' = "' + stringCompleto,
+          lineaInicial,
+          'Falta comilla de cierre en la cadena'
+        )
+        return;
+      }
+
       valor = stringCompleto
     }
 
     if (esOperacionAritmetica(tokens, i)) {
       manejarOperacion(
         tokens, i, lineaActual, variable, valor,
-        gestorTablaSimbolos, gestorErrores
+        gestorTablaSimbolos, gestorErrores,
+        entrada, ultimoIndice
       )
     } else {
       const tipoValor = VerificadorTipos.obtenerTipoValor(valor, gestorTablaSimbolos.variablesDeclaradas)
@@ -198,7 +268,7 @@ C = C + W2;`
     }
   }
 
-  const manejarOperacion = (tokens, i, lineaActual, variable, valor, gestorTablaSimbolos, gestorErrores) => {
+  const manejarOperacion = (tokens, i, lineaActual, variable, valor, gestorTablaSimbolos, gestorErrores, entrada, ultimoIndice) => {
     const operador = tokens[i + 2]
     let segundoOperando = tokens[i + 3]
     const tipoVariable = gestorTablaSimbolos.variablesDeclaradas[variable]
@@ -207,7 +277,20 @@ C = C + W2;`
     if (segundoOperando === '"' || segundoOperando === "'") {
       let stringCompleto = ''
       let j = i + 4  // Empezamos después de la comilla de apertura
+      let lineaInicial = lineaActual
+
       while (j < tokens.length && tokens[j] !== '"' && tokens[j] !== "'") {
+        let posicionToken = entrada.indexOf(tokens[j], ultimoIndice)
+        let lineaToken = obtenerNumeroLinea(entrada, posicionToken)
+
+        if (lineaToken !== lineaInicial) {
+          gestorErrores.agregarError(
+            `${variable} = ${valor} ${operador} "${stringCompleto}`,
+            lineaInicial,
+            'Falta comilla de cierre en la cadena'
+          )
+          return;
+        }
         stringCompleto += tokens[j].trim()
         j++
       }
@@ -247,6 +330,7 @@ C = C + W2;`
         lineaActual,
         `Incompatibilidad de tipos, ${tipoVariable}`
       )
+
     }
   }
 
