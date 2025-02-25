@@ -21,11 +21,17 @@ export default function SymbolTableRenderer({ input, symbolTable, semanticErrors
               </h2>
               <textarea
                 value={input}
-                onChange={(e) => onInputChange(e.target.value)}
+                onChange={(e) => onInputChange(e.target.value, false)}
                 placeholder="Ingrese código para analizar..."
-                className="w-full px-4 py-3 rounded-lg border border-[#0A2F7B] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-3 rounded-lg border border-[#0A2F7B] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
                 rows="17"
               />
+              <button
+                onClick={() => onInputChange(input, true)}
+                className="w-full bg-[#0A2F7B] text-white py-2 px-4 rounded-lg hover:bg-[#0A2F7B]/90 transition-colors"
+              >
+                Compilar
+              </button>
             </div>
 
             {/* Columna central - Tabla de símbolos */}

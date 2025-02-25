@@ -19,22 +19,13 @@ import {
 } from './utilidades'
 
 export default function TablaSimbolos() {
-  const entradaPredeterminada = `numero A,B,C;
-decimal D,E,F;
-palabra W1,W2,W3;
-A = "Hola";
-E = "Mundo";
-C = 123;
-W1 = 22;
-W2 = "Hi";
-W3 = "World";
-D = 12.2;
-E = 3.14;
-F = 2.33;
-D = E + F;
-F = E / W2;
-W2 = W3 * D;
-C = C + W2;`
+  const entradaPredeterminada = `numero N1, N2, N3;
+decimal D1, D2 ,D3;
+palabra P1, P2, P3;
+D1 = 5.6 + 0.7 - 2.9;
+D2 = 0.9 * 6.9 / 1.2;
+P3 = "Hola";
+N3 = 10;`
 
   const [entrada, setEntrada] = useState(entradaPredeterminada)
   const [tablaSimbolos, setTablaSimbolos] = useState([])
@@ -343,7 +334,12 @@ C = C + W2;`
       input={entrada}
       symbolTable={tablaSimbolos}
       semanticErrors={erroresSemanticos}
-      onInputChange={analizarEntrada}
+      onInputChange={(texto, shouldCompile) => {
+        setEntrada(texto)
+        if (shouldCompile) {
+          analizarEntrada(texto)
+        }
+      }}
     />
   )
 }
