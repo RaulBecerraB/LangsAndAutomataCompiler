@@ -262,22 +262,24 @@ N3 = 10;`
   const manejarOperacion = (tokens, i, lineaActual, variable, primerOperando, gestorTablaSimbolos, gestorErrores, entrada, ultimoIndice) => {
     const tipoVariable = gestorTablaSimbolos.variablesDeclaradas[variable]
     let operandos = []
+    let expresionCompleta = []
     let j = i + 1 // Empezamos desde el primer operando
 
-    // Recolectar todos los operandos
+    // Recolectar todos los operandos y operadores
     while (j < tokens.length && tokens[j] !== ';') {
       const token = tokens[j].trim()
 
-      // Si es un operador, continuamos
+      // Si es un operador, lo guardamos en la expresión completa
       if (esSimboloEspecial(token)) {
+        expresionCompleta.push(token)
         j++
         continue
       }
 
-      // Si es una variable o número, lo agregamos como operando
-      if (esTokenVariableValido(token) || !isNaN(token)) {
-        // Verificar si la variable está declarada
-        if (esVariableNoDeclarada(token, gestorTablaSimbolos)) {
+      // Si es una variable o número o string literal, lo agregamos como operando
+      if (esTokenVariableValido(token) || !isNaN(token) || token.startsWith('"') || token === '"') {
+        // Si es una variable, verificar si está declarada
+        if (esTokenVariableValido(token) && esVariableNoDeclarada(token, gestorTablaSimbolos)) {
           gestorErrores.agregarError(
             token,
             lineaActual,
@@ -285,7 +287,15 @@ N3 = 10;`
           )
           return
         }
-        operandos.push(token)
+        // Si es un string literal sin comillas (como "adf" que viene sin comillas)
+        if (!esTokenVariableValido(token) && isNaN(token) && !token.startsWith('"') && token !== '"') {
+          const tokenConComillas = `"${token}"`
+          operandos.push(tokenConComillas)
+          expresionCompleta.push(tokenConComillas)
+        } else {
+          operandos.push(token)
+          expresionCompleta.push(token)
+        }
       }
 
       j++
@@ -301,8 +311,10 @@ N3 = 10;`
     const hayIncompatibilidad = tipos.some(tipo => tipo !== primerTipo)
 
     if (hayIncompatibilidad) {
+      // Construir el mensaje de error con la expresión original completa
+      const expresionOriginal = `${variable} = ${expresionCompleta.join(' ')}`;
       gestorErrores.agregarError(
-        operandos.join(' '),
+        expresionOriginal,
         lineaActual,
         'Incompatibilidad de tipos en operación'
       )
@@ -312,7 +324,7 @@ N3 = 10;`
     // Verificar compatibilidad con la variable de asignación
     if (!VerificadorTipos.esCompatible(tipoVariable, primerTipo)) {
       gestorErrores.agregarError(
-        `${variable} = ${operandos.join(' ')}`,
+        `${variable} = ${expresionCompleta.join(' ')}`,
         lineaActual,
         `Incompatibilidad de tipos, ${tipoVariable}`
       )
