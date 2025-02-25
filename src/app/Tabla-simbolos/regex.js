@@ -1,6 +1,6 @@
 export const EXPRESIONES = {
-  // Identificadores: comienzan con letra o _ seguido de letras, números o _
-  IDENTIFICADOR_VALIDO: /^[A-Za-z_]\w*$/,
+  // Identificadores: deben comenzar con mayúscula y seguir con letras, números o guiones bajos
+  IDENTIFICADOR_VALIDO: /^[A-Z][a-zA-Z0-9_]*$/,
   
   // Símbolos especiales: coma, punto y coma, comillas simples y dobles
   SIMBOLOS_ESPECIALES: /[,;'"+*=/-]/,

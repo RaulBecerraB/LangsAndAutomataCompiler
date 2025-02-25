@@ -91,13 +91,10 @@ C = C + W2`
         const numeroLineaActual = lineaActual
         let variables = []
         while (j < tokens.length) {
-          //Paso 4.3.1.1: Obtener siguiente token
           const siguienteToken = tokens[j].trim()
           if (esLineaDiferente(texto, siguienteToken, ultimoIndice, numeroLineaActual, obtenerNumeroLinea)) break
-          if (esTokenDeclaracionInvalido(siguienteToken)) break
-
+          if (esTokenDeclaracionInvalido(siguienteToken) && !esTokenVariableValido(siguienteToken)) break
           if (esTokenVariableValido(siguienteToken)) {
-            //Paso 4.3.1.2: Agregar variable
             variables.push(siguienteToken)
 
             // Verificar si el siguiente token es una coma y agregarla después de la variable
@@ -113,7 +110,12 @@ C = C + W2`
       }
 
       // Verificar variables no declaradas solo si no es un símbolo especial
-      if (!esSimboloEspecial(token) && esTokenNoDeclarado(token, gestorTablaSimbolos)) {
+      if (!esSimboloEspecial(token) &&
+        !esTipoDato(token) &&
+        token !== '"' &&
+        token !== "'" &&
+        isNaN(token) &&
+        !gestorTablaSimbolos.esVariableDeclarada(token)) {
         gestorErrores.agregarError(token, lineaActual, 'Variable indefinida')
       }
 
