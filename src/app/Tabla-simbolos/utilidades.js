@@ -50,7 +50,7 @@ export const esTokenVariableValido = (token) => {
 }
 
 export const esSimboloEspecial = (token) => {
-  return EXPRESIONES.SIMBOLOS_ESPECIALES.test(token);
+  return ['+', '-', '*', '/', '=', ',', ';'].includes(token);
 }
 
 export const esAsignacion = (token, indice, tokens) => {

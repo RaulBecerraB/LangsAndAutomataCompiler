@@ -19,43 +19,53 @@ import {
 } from './utilidades'
 
 export default function TablaSimbolos() {
-  const entradaPredeterminada = `numero A,B,C
-decimal D,E,F
-palabra W1,W2,W3
-A = "Hola"
-E = "Mundo"
-C = 123
-W1 = 22
-W2 = "Hi"
-W3 = "World"
-D = 12.2
-E = 3.14
-F = 2.33
-D = E + F
-F = E / W2
-W2 = W3 * D
-C = C + W2`
+  const entradaPredeterminada = `numero A,B,C;
+decimal D,E,F;
+palabra W1,W2,W3;
+A = "Hola";
+E = "Mundo";
+C = 123;
+W1 = 22;
+W2 = "Hi";
+W3 = "World";
+D = 12.2;
+E = 3.14;
+F = 2.33;
+D = E + F;
+F = E / W2;
+W2 = W3 * D;
+C = C + W2;`
 
   const [entrada, setEntrada] = useState(entradaPredeterminada)
   const [tablaSimbolos, setTablaSimbolos] = useState([])
   const [erroresSemanticos, setErroresSemanticos] = useState([])
 
   const analizarEntrada = (texto) => {
-    ///////////////////////////////////////////////////////////////////////////////
-    //Casos de uso: ANALIZADOR
-    ///////////////////////////////////////////////////////////////////////////////
-    //Paso 1: Dividir el texto en tokens usando una expresión regular
-    const tokens = texto.match(EXPRESIONES.ANALIZADOR) || []
-    ///////////////////////////////////////////////////////////////////////////////
-    //Paso 2: Crear gestores, aquí se almacenan los errores y la tabla de simbolos
+    // Paso 1: Crear gestores
     const gestorTablaSimbolos = new GestorTablaSimbolos()
     const gestorErrores = new GestorErrores()
 
-    //Paso 3: Definir variables para obtener numero de linea
+    // Paso 2: Verificar punto y coma al final de cada línea (una sola vez)
+    const lineas = texto.split('\n')
+    lineas.forEach((linea, index) => {
+      const lineaTrimmed = linea.trim()
+      if (lineaTrimmed.length > 0 && !lineaTrimmed.endsWith(';')) {
+        gestorErrores.agregarError(
+          lineaTrimmed,
+          index + 1,
+          'Falta punto y coma (;) al final de la instrucción'
+        )
+      }
+    })
+
+    // Paso 3: Dividir el texto en tokens usando una expresión regular
+    const tokens = texto.match(EXPRESIONES.ANALIZADOR) || []
+
+    // Paso 4: Definir variables para obtener numero de linea
     let lineaActual = 1
     let ultimoIndice = 0
 
-    //Paso 4: Procesar tokens y obtener numero de linea
+    // Paso 5: Procesar tokens
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i].trim()
       if (!token) continue
@@ -189,27 +199,34 @@ C = C + W2`
   }
 
   const manejarOperacion = (tokens, i, lineaActual, variable, valor, gestorTablaSimbolos, gestorErrores) => {
-    ///////////////////////////////////////////////////////////////////////////////
-    //Caso de uso: OPERACIONES ARITMETICAS
-    //Estas variables sirven como base para determinar si existe un error en la operación
-    ///////////////////////////////////////////////////////////////////////////////
     const operador = tokens[i + 2]
-    const segundoOperando = tokens[i + 3]
+    let segundoOperando = tokens[i + 3]
     const tipoVariable = gestorTablaSimbolos.variablesDeclaradas[variable]
+
+    // Manejar strings en el segundo operando
+    if (segundoOperando === '"' || segundoOperando === "'") {
+      let stringCompleto = ''
+      let j = i + 4  // Empezamos después de la comilla de apertura
+      while (j < tokens.length && tokens[j] !== '"' && tokens[j] !== "'") {
+        stringCompleto += tokens[j].trim()
+        j++
+      }
+      segundoOperando = stringCompleto
+    }
 
     const tipoPrimerOperando = VerificadorTipos.obtenerTipoValor(valor, gestorTablaSimbolos.variablesDeclaradas)
     const tipoSegundoOperando = VerificadorTipos.obtenerTipoValor(segundoOperando, gestorTablaSimbolos.variablesDeclaradas)
-    const tipoResultado = VerificadorTipos.obtenerTipoResultado(tipoPrimerOperando, tipoSegundoOperando)
-    ///////////////////////////////////////////////////////////////////////////////
-    //Casos de uso: ERRORES SEMANTICOS 
-    ///////////////////////////////////////////////////////////////////////////////
-    //Caso 1: Variable no declarada
-    if (esVariableNoDeclarada(segundoOperando, gestorTablaSimbolos)) {
-      return;
-    }
 
-    //Caso 2: Incompatibilidad de tipos
-    if (!tipoResultado) {
+    console.log('Operación:', {
+      valor,
+      operador,
+      segundoOperando,
+      tipoPrimerOperando,
+      tipoSegundoOperando
+    });
+
+    // Verificar incompatibilidad de tipos en la operación
+    if (tipoPrimerOperando !== tipoSegundoOperando) {
       gestorErrores.agregarError(
         `${valor} ${operador} ${segundoOperando}`,
         lineaActual,
@@ -218,15 +235,19 @@ C = C + W2`
       return
     }
 
-    //Caso 3: Incompatibilidad de tipos
-    if (!VerificadorTipos.esCompatible(tipoVariable, tipoResultado)) {
+    // Verificar variables no declaradas
+    if (esVariableNoDeclarada(segundoOperando, gestorTablaSimbolos)) {
+      return;
+    }
+
+    // Verificar compatibilidad con la variable de asignación
+    if (!VerificadorTipos.esCompatible(tipoVariable, tipoPrimerOperando)) {
       gestorErrores.agregarError(
         `${variable} = ${valor} ${operador} ${segundoOperando}`,
         lineaActual,
         `Incompatibilidad de tipos, ${tipoVariable}`
       )
     }
-    ///////////////////////////////////////////////////////////////////////////////
   }
 
   useEffect(() => {
