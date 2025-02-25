@@ -109,22 +109,34 @@ C = C + W2`
         continue
       }
 
-      // Verificar variables no declaradas solo si no es un símbolo especial
+      let tieneError = false;
+      // Verificar variables no declaradas y nombres de variables inválidos
       if (!esSimboloEspecial(token) &&
         !esTipoDato(token) &&
         token !== '"' &&
         token !== "'" &&
-        isNaN(token) &&
-        !gestorTablaSimbolos.esVariableDeclarada(token)) {
-        gestorErrores.agregarError(token, lineaActual, 'Variable indefinida')
+        isNaN(token)) {
+        if (!esTokenVariableValido(token)) {
+          gestorErrores.agregarError(token, lineaActual, 'Nombre de variable inválido')
+          tieneError = true;
+          continue;
+        } else if (!gestorTablaSimbolos.esVariableDeclarada(token)) {
+          gestorErrores.agregarError(token, lineaActual, 'Variable indefinida')
+          tieneError = true;
+          continue;
+        }
       }
 
-      if (esAsignacion(token, i, tokens)) {
-        manejarAsignacion(
-          tokens, i, lineaActual,
-          gestorTablaSimbolos,
-          gestorErrores
-        )
+      if (!tieneError && esAsignacion(token, i, tokens)) {
+        // Verificar si es una declaración y asignación en la misma línea
+        const esTipoDatoAnterior = i > 0 && esTipoDato(tokens[i - 2]);
+        if (!esTipoDatoAnterior) {
+          manejarAsignacion(
+            tokens, i, lineaActual,
+            gestorTablaSimbolos,
+            gestorErrores
+          );
+        }
       }
 
       const tipo = VerificadorTipos.obtenerTipoValor(token, gestorTablaSimbolos.variablesDeclaradas)
