@@ -19,8 +19,28 @@ export function obtenerSimbolosUnicos(simbolos) {
 }
 
 export const esOperacionAritmetica = (tokens, indiceActual) => {
-  return indiceActual + 2 < tokens.length && 
-         ['+', '-', '*', '/'].includes(tokens[indiceActual + 2]);
+  let i = indiceActual + 2; // Empezamos después del primer operando
+  let encontroOperador = false;
+
+  while (i < tokens.length && tokens[i] !== ';') {
+    const token = tokens[i].trim();
+    
+    // Si encontramos un operador, marcamos que la operación continúa
+    if (['+', '-', '*', '/'].includes(token)) {
+      encontroOperador = true;
+      i++;
+      continue;
+    }
+    
+    // Si después de un operador no hay otro operando, terminamos
+    if (encontroOperador && !['+', '-', '*', '/', ';'].includes(token)) {
+      return true;
+    }
+    
+    i++;
+  }
+
+  return encontroOperador;
 }
 
 export const esIdentificadorValido = (identificador) => {

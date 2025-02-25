@@ -259,69 +259,63 @@ N3 = 10;`
     }
   }
 
-  const manejarOperacion = (tokens, i, lineaActual, variable, valor, gestorTablaSimbolos, gestorErrores, entrada, ultimoIndice) => {
-    const operador = tokens[i + 2]
-    let segundoOperando = tokens[i + 3]
+  const manejarOperacion = (tokens, i, lineaActual, variable, primerOperando, gestorTablaSimbolos, gestorErrores, entrada, ultimoIndice) => {
     const tipoVariable = gestorTablaSimbolos.variablesDeclaradas[variable]
+    let operandos = []
+    let j = i + 1 // Empezamos desde el primer operando
 
-    // Manejar strings en el segundo operando
-    if (segundoOperando === '"' || segundoOperando === "'") {
-      let stringCompleto = ''
-      let j = i + 4  // Empezamos después de la comilla de apertura
-      let lineaInicial = lineaActual
+    // Recolectar todos los operandos
+    while (j < tokens.length && tokens[j] !== ';') {
+      const token = tokens[j].trim()
 
-      while (j < tokens.length && tokens[j] !== '"' && tokens[j] !== "'") {
-        let posicionToken = entrada.indexOf(tokens[j], ultimoIndice)
-        let lineaToken = obtenerNumeroLinea(entrada, posicionToken)
-
-        if (lineaToken !== lineaInicial) {
-          gestorErrores.agregarError(
-            `${variable} = ${valor} ${operador} "${stringCompleto}`,
-            lineaInicial,
-            'Falta comilla de cierre en la cadena'
-          )
-          return;
-        }
-        stringCompleto += tokens[j].trim()
+      // Si es un operador, continuamos
+      if (esSimboloEspecial(token)) {
         j++
+        continue
       }
-      segundoOperando = stringCompleto
+
+      // Si es una variable o número, lo agregamos como operando
+      if (esTokenVariableValido(token) || !isNaN(token)) {
+        // Verificar si la variable está declarada
+        if (esVariableNoDeclarada(token, gestorTablaSimbolos)) {
+          gestorErrores.agregarError(
+            token,
+            lineaActual,
+            'Variable indefinida'
+          )
+          return
+        }
+        operandos.push(token)
+      }
+
+      j++
     }
 
-    const tipoPrimerOperando = VerificadorTipos.obtenerTipoValor(valor, gestorTablaSimbolos.variablesDeclaradas)
-    const tipoSegundoOperando = VerificadorTipos.obtenerTipoValor(segundoOperando, gestorTablaSimbolos.variablesDeclaradas)
+    // Verificar tipos de todos los operandos
+    const tipos = operandos.map(operando =>
+      VerificadorTipos.obtenerTipoValor(operando, gestorTablaSimbolos.variablesDeclaradas)
+    )
 
-    console.log('Operación:', {
-      valor,
-      operador,
-      segundoOperando,
-      tipoPrimerOperando,
-      tipoSegundoOperando
-    });
+    // Verificar que todos los operandos sean del mismo tipo
+    const primerTipo = tipos[0]
+    const hayIncompatibilidad = tipos.some(tipo => tipo !== primerTipo)
 
-    // Verificar incompatibilidad de tipos en la operación
-    if (tipoPrimerOperando !== tipoSegundoOperando) {
+    if (hayIncompatibilidad) {
       gestorErrores.agregarError(
-        `${valor} ${operador} ${segundoOperando}`,
+        operandos.join(' '),
         lineaActual,
         'Incompatibilidad de tipos en operación'
       )
       return
     }
 
-    // Verificar variables no declaradas
-    if (esVariableNoDeclarada(segundoOperando, gestorTablaSimbolos)) {
-      return;
-    }
-
     // Verificar compatibilidad con la variable de asignación
-    if (!VerificadorTipos.esCompatible(tipoVariable, tipoPrimerOperando)) {
+    if (!VerificadorTipos.esCompatible(tipoVariable, primerTipo)) {
       gestorErrores.agregarError(
-        `${variable} = ${valor} ${operador} ${segundoOperando}`,
+        `${variable} = ${operandos.join(' ')}`,
         lineaActual,
         `Incompatibilidad de tipos, ${tipoVariable}`
       )
-
     }
   }
 
