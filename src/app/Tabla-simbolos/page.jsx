@@ -324,35 +324,26 @@ N3 = 10;`
     });
 
     // Verificar que todos los operandos sean del mismo tipo
-    const primerTipo = tipos[0]
-    const hayIncompatibilidad = tipos.some(tipo => tipo !== primerTipo)
+    const primerTipo = tipos[0];
+    let hayIncompatibilidad = false;
+
+    // Verificar cada operando y reportar errores individuales para cada incompatibilidad
+    let operandosIncompatibles = [];
+    for (let idx = 1; idx < tipos.length; idx++) {
+      if (tipos[idx] !== primerTipo) {
+        hayIncompatibilidad = true;
+        operandosIncompatibles.push(operandos[idx]);
+      }
+    }
 
     if (hayIncompatibilidad) {
-      // Identificar el operando problemático
-      const indiceProblematico = tipos.findIndex((tipo, idx) => tipo !== primerTipo);
-      const operandoProblematico = indiceProblematico !== -1 ? operandos[indiceProblematico] : operandos[1];
-      
-      // Si el operando es una cadena literal, usar la cadena completa para el mensaje de error
-      let tokenError = operandoProblematico;
-      if (tokenError === '"') {
-        // Buscar la cadena completa en tokens originales
-        let k = j - operandos.length;
-        while (k < tokens.length) {
-          if (tokens[k] === '"' && k + 1 < tokens.length && tokens[k+2] === '"') {
-            // Mostrar solo el contenido sin comillas
-            tokenError = tokens[k+1];
-            break;
-          }
-          k++;
-        }
-      }
-      
+      // Reportar un solo error con todos los operandos incompatibles
       gestorErrores.agregarError(
-        tokenError,
+        operandosIncompatibles.join(','),
         lineaActual,
         'Incompatibilidad de tipos en operación'
-      )
-      return
+      );
+      return;
     }
 
     // Verificar compatibilidad con la variable de asignación
@@ -383,4 +374,3 @@ N3 = 10;`
     />
   )
 }
-
