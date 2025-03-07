@@ -25,7 +25,7 @@ palabra P1, P2, P3;
 D1 = 5.6 + 0.7 - 2.9;
 D2 = 0.9 * 6.9 / 1.2;
 P3 = "Hola";
-N3 = 10;`
+N3 = 10;`
 
   const [entrada, setEntrada] = useState(entradaPredeterminada)
   const [tablaSimbolos, setTablaSimbolos] = useState([])
@@ -273,9 +273,13 @@ N3 = 10;`
     }
 
     // Verificar tipos de todos los operandos
-    const tipos = operandos.map(operando =>
-      VerificadorTipos.obtenerTipoValor(operando, gestorTablaSimbolos.variablesDeclaradas)
-    )
+    const tipos = operandos.map(operando => {
+      // Manejar explícitamente las cadenas literales
+      if (operando.startsWith('"') && operando.endsWith('"')) {
+        return 'palabra';
+      }
+      return VerificadorTipos.obtenerTipoValor(operando, gestorTablaSimbolos.variablesDeclaradas);
+    });
 
     // Verificar que todos los operandos sean del mismo tipo
     const primerTipo = tipos[0]
@@ -283,12 +287,26 @@ N3 = 10;`
 
     if (hayIncompatibilidad) {
       // Identificar el operando problemático
-      const operandoProblematico = operandos.find((op, idx) => 
-        VerificadorTipos.obtenerTipoValor(op, gestorTablaSimbolos.variablesDeclaradas) !== primerTipo
-      ) || operandos[1]; // Si no encontramos uno específico, usamos el segundo operando
+      const indiceProblematico = tipos.findIndex((tipo, idx) => tipo !== primerTipo);
+      const operandoProblematico = indiceProblematico !== -1 ? operandos[indiceProblematico] : operandos[1];
+      
+      // Si el operando es una cadena literal, usar la cadena completa para el mensaje de error
+      let tokenError = operandoProblematico;
+      if (tokenError === '"') {
+        // Buscar la cadena completa en tokens originales
+        let k = j - operandos.length;
+        while (k < tokens.length) {
+          if (tokens[k] === '"' && k + 1 < tokens.length && tokens[k+2] === '"') {
+            // Mostrar solo el contenido sin comillas
+            tokenError = tokens[k+1];
+            break;
+          }
+          k++;
+        }
+      }
       
       gestorErrores.agregarError(
-        operandoProblematico,
+        tokenError,
         lineaActual,
         'Incompatibilidad de tipos en operación'
       )
