@@ -251,9 +251,9 @@ N3 = 10;`
       const tipoValor = VerificadorTipos.obtenerTipoValor(valor, gestorTablaSimbolos.variablesDeclaradas)
       if (!VerificadorTipos.esCompatible(tipoVariable, tipoValor)) {
         gestorErrores.agregarError(
-          `${variable}, ${valor}`,
+          valor,
           lineaActual,
-          `Incompatibilidad de tipos, ${tipoVariable}`
+          `Incompatibilidad de tipos, esperado: ${tipoVariable}`
         )
       }
     }
@@ -311,10 +311,13 @@ N3 = 10;`
     const hayIncompatibilidad = tipos.some(tipo => tipo !== primerTipo)
 
     if (hayIncompatibilidad) {
-      // Construir el mensaje de error con la expresión original completa
-      const expresionOriginal = `${variable} = ${expresionCompleta.join(' ')}`;
+      // Identificar el operando problemático
+      const operandoProblematico = operandos.find((op, idx) => 
+        VerificadorTipos.obtenerTipoValor(op, gestorTablaSimbolos.variablesDeclaradas) !== primerTipo
+      ) || operandos[1]; // Si no encontramos uno específico, usamos el segundo operando
+      
       gestorErrores.agregarError(
-        expresionOriginal,
+        operandoProblematico,
         lineaActual,
         'Incompatibilidad de tipos en operación'
       )
@@ -324,9 +327,9 @@ N3 = 10;`
     // Verificar compatibilidad con la variable de asignación
     if (!VerificadorTipos.esCompatible(tipoVariable, primerTipo)) {
       gestorErrores.agregarError(
-        `${variable} = ${expresionCompleta.join(' ')}`,
+        variable,
         lineaActual,
-        `Incompatibilidad de tipos, ${tipoVariable}`
+        `Incompatibilidad de tipos, esperado: ${tipoVariable}`
       )
     }
   }
