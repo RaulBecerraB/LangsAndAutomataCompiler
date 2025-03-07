@@ -146,19 +146,26 @@ N3 = 10;`
         token !== '"' &&
         token !== "'" &&
         isNaN(token)) {
-        if (!esTokenVariableValido(token)) {
-          gestorErrores.agregarError(token, lineaActual, 'Variable indefinida')
-          tieneError = true;
-          // Agregamos el token a la tabla de símbolos aunque tenga error
-          gestorTablaSimbolos.agregarSimbolo(token, 'error');
-        } else if (!gestorTablaSimbolos.esVariableDeclarada(token) && !variablesVerificadas.has(token)) {
-          gestorErrores.agregarError(token, lineaActual, 'Variable indefinida')
-          variablesVerificadas.add(token); // Agregamos la variable al Set
-          tieneError = true;
-          // Agregamos el token a la tabla de símbolos aunque tenga error
-          gestorTablaSimbolos.agregarSimbolo(token, 'error');
+        // Verificar si el token es parte de una asignación
+        const esParteDeAsignacion = (i + 1 < tokens.length && tokens[i + 1] === '=') || 
+                                   (i > 0 && tokens[i - 1] === '=');
+        
+        // Si es parte de una asignación, la verificación se hará en manejarAsignacion
+        if (!esParteDeAsignacion) {
+          if (!esTokenVariableValido(token)) {
+            gestorErrores.agregarError(token, lineaActual, 'Nombre de variable inválido')
+            tieneError = true;
+            // Agregamos el token a la tabla de símbolos aunque tenga error
+            gestorTablaSimbolos.agregarSimbolo(token, '');
+          } else if (!gestorTablaSimbolos.esVariableDeclarada(token) && !variablesVerificadas.has(token)) {
+            gestorErrores.agregarError(token, lineaActual, 'Variable indefinida')
+            variablesVerificadas.add(token); // Agregamos la variable al Set
+            tieneError = true;
+            // Agregamos el token a la tabla de símbolos aunque tenga error
+            gestorTablaSimbolos.agregarSimbolo(token, '');
+          }
+          if (tieneError) continue;
         }
-        if (tieneError) continue;
       }
 
       if (!tieneError && esAsignacion(token, i, tokens)) {
@@ -195,17 +202,44 @@ N3 = 10;`
     let valor = tokens[i + 1]
     const tipoVariable = gestorTablaSimbolos.variablesDeclaradas[variable]
 
+    // Si la variable no está declarada, reportar error y salir
     if (!gestorTablaSimbolos.esVariableDeclarada(variable)) {
+      gestorErrores.agregarError(
+        variable,
+        lineaActual,
+        'Variable indefinida'
+      )
       // Asegurarnos de que la variable no declarada se agregue a la tabla de símbolos
       gestorTablaSimbolos.agregarSimbolo(variable, '');
       return;
     }
 
-    // Si el valor no es un token válido, agregarlo como error
-    if (!esTokenVariableValido(valor) && isNaN(valor) && valor !== '"' && valor !== "'" && !esSimboloEspecial(valor)) {
+    // Verificar si el valor es un token inválido o una variable no declarada
+    if (esTokenVariableValido(valor)) {
+      if (!gestorTablaSimbolos.esVariableDeclarada(valor)) {
+        gestorErrores.agregarError(
+          valor,
+          lineaActual,
+          'Variable indefinida'
+        )
+        // Agregar la variable no declarada a la tabla de símbolos
+        gestorTablaSimbolos.agregarSimbolo(valor, '');
+        return; // Salir sin verificar tipos
+      }
+    } else if (!isNaN(valor) || valor === '"' || valor === "'" || esSimboloEspecial(valor)) {
+      // Es un número, comilla o símbolo especial, continuar
+    } else {
+      // No es una variable válida ni un número ni una comilla ni un símbolo especial
+      gestorErrores.agregarError(
+        valor,
+        lineaActual,
+        'Variable indefinida'
+      )
       gestorTablaSimbolos.agregarSimbolo(valor, '');
+      return; // Salir sin verificar tipos
     }
 
+    // Continuar con la verificación de tipos solo si no hay errores de variables no declaradas
     if (esOperacionAritmetica(tokens, i)) {
       manejarOperacion(
         tokens, i, lineaActual, variable, valor,
@@ -229,6 +263,7 @@ N3 = 10;`
     let operandos = []
     let expresionCompleta = []
     let j = i + 1 // Empezamos desde el primer operando
+    let hayVariableNoDeclarada = false;
 
     // Recolectar todos los operandos y operadores
     while (j < tokens.length && tokens[j] !== ';') {
@@ -252,9 +287,11 @@ N3 = 10;`
           )
           // Agregamos el token a la tabla de símbolos aunque tenga error
           gestorTablaSimbolos.agregarSimbolo(token, '');
-          return
+          hayVariableNoDeclarada = true;
+          // Seguimos procesando para encontrar más variables no declaradas
         }
-        // Si es un string literal sin comillas (como "adf" que viene sin comillas)
+        
+        // Agregamos el operando a la lista aunque sea una variable no declarada
         if (!esTokenVariableValido(token) && isNaN(token) && !token.startsWith('"') && token !== '"') {
           const tokenConComillas = `"${token}"`
           operandos.push(tokenConComillas)
@@ -270,6 +307,11 @@ N3 = 10;`
       }
 
       j++
+    }
+
+    // Si hay variables no declaradas, no seguir con la verificación de tipos
+    if (hayVariableNoDeclarada) {
+      return;
     }
 
     // Verificar tipos de todos los operandos
