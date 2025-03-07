@@ -147,12 +147,16 @@ N3 = 10;`
         token !== "'" &&
         isNaN(token)) {
         if (!esTokenVariableValido(token)) {
-          gestorErrores.agregarError(token, lineaActual, 'Nombre de variable inválido')
+          gestorErrores.agregarError(token, lineaActual, 'Variable indefinida')
           tieneError = true;
+          // Agregamos el token a la tabla de símbolos aunque tenga error
+          gestorTablaSimbolos.agregarSimbolo(token, 'error');
         } else if (!gestorTablaSimbolos.esVariableDeclarada(token) && !variablesVerificadas.has(token)) {
           gestorErrores.agregarError(token, lineaActual, 'Variable indefinida')
           variablesVerificadas.add(token); // Agregamos la variable al Set
           tieneError = true;
+          // Agregamos el token a la tabla de símbolos aunque tenga error
+          gestorTablaSimbolos.agregarSimbolo(token, 'error');
         }
         if (tieneError) continue;
       }
@@ -192,53 +196,14 @@ N3 = 10;`
     const tipoVariable = gestorTablaSimbolos.variablesDeclaradas[variable]
 
     if (!gestorTablaSimbolos.esVariableDeclarada(variable)) {
+      // Asegurarnos de que la variable no declarada se agregue a la tabla de símbolos
+      gestorTablaSimbolos.agregarSimbolo(variable, '');
       return;
     }
 
-    // Manejar strings que vienen como tokens separados
-    if (valor === '"' || valor === "'") {
-      let stringCompleto = ''
-      let j = i + 2  // Empezamos después de la comilla de apertura
-      let lineaInicial = lineaActual
-      let encontroComillaCierre = false
-
-      while (j < tokens.length && tokens[j] !== '"' && tokens[j] !== "'") {
-        let posicionToken = entrada.indexOf(tokens[j], ultimoIndice)
-        let lineaToken = obtenerNumeroLinea(entrada, posicionToken)
-
-        if (lineaToken !== lineaInicial) {
-          gestorErrores.agregarError(
-            variable + ' = "' + stringCompleto + tokens[j - 1],
-            lineaInicial,
-            'Falta comilla de cierre en la cadena'
-          )
-          // Saltar al final de la línea actual
-          while (j < tokens.length) {
-            let nextTokenLine = obtenerNumeroLinea(entrada, entrada.indexOf(tokens[j], ultimoIndice))
-            if (nextTokenLine > lineaInicial) break;
-            j++;
-          }
-          return i = j - 1; // Actualizar el índice principal para saltar tokens
-        }
-        stringCompleto += tokens[j].trim()
-        j++
-      }
-
-      if (j < tokens.length && (tokens[j] === '"' || tokens[j] === "'")) {
-        encontroComillaCierre = true;
-      }
-
-      // Si no se encontró la comilla de cierre, agregar error
-      if (!encontroComillaCierre) {
-        gestorErrores.agregarError(
-          variable + ' = "' + stringCompleto,
-          lineaInicial,
-          'Falta comilla de cierre en la cadena'
-        )
-        return;
-      }
-
-      valor = stringCompleto
+    // Si el valor no es un token válido, agregarlo como error
+    if (!esTokenVariableValido(valor) && isNaN(valor) && valor !== '"' && valor !== "'" && !esSimboloEspecial(valor)) {
+      gestorTablaSimbolos.agregarSimbolo(valor, '');
     }
 
     if (esOperacionAritmetica(tokens, i)) {
@@ -285,6 +250,8 @@ N3 = 10;`
             lineaActual,
             'Variable indefinida'
           )
+          // Agregamos el token a la tabla de símbolos aunque tenga error
+          gestorTablaSimbolos.agregarSimbolo(token, '');
           return
         }
         // Si es un string literal sin comillas (como "adf" que viene sin comillas)
@@ -296,6 +263,10 @@ N3 = 10;`
           operandos.push(token)
           expresionCompleta.push(token)
         }
+      } else if (!esSimboloEspecial(token) && token !== ';') {
+        // Si no es un token válido pero tampoco es un símbolo especial o punto y coma
+        // lo agregamos a la tabla de símbolos como error
+        gestorTablaSimbolos.agregarSimbolo(token, '');
       }
 
       j++
